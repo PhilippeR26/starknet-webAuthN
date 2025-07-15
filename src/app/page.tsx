@@ -8,6 +8,8 @@ import starknetjsImg from "../public/Images/StarkNet-JS_logo.png";
 import webAuthnImg from "../public/Images/WebAuthn.png";
 import { DisplayConnected } from './components/client/DisplayConnected';
 import LowerBanner from './components/client/LowerBanner';
+import CreateUser from './components/client/ConnectWallet/CreateUser';
+import ConnectWallet from './components/client/ConnectWallet/ConnectWallet';
 
 export default async function Page() {
 

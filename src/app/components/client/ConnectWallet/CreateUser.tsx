@@ -1,92 +1,186 @@
 "use client";
 
 import { useStoreWallet } from './walletContext';
-import { Button } from "@chakra-ui/react";
+import { Button, Center } from "@chakra-ui/react";
 import { connect } from '@starknet-io/get-starknet';
 import { WALLET_API } from '@starknet-io/types-js';
-import { validateAndParseAddress, wallet, WalletAccount, constants as SNconstants } from 'starknet';
-import { myFrontendProviders } from '@/utils/constants';
+import { validateAndParseAddress, wallet, WalletAccount, constants as SNconstants, num, encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract } from 'starknet';
+import { email, myFrontendProviders, ReadyAccountClassHash, rpId, strkAddress } from '@/utils/constants';
 import { useFrontendProvider } from '../provider/providerContext';
 import { useState } from 'react';
+import { utils } from '@scure/starknet';
+import { log } from 'console';
+import type { WebAuthNUser } from '@/type/types';
+import { ReadyAccountAbi } from '@/contracts/ReadyAbi';
+import { sha256 } from '@noble/hashes/sha2';
+import { useGlobalContext } from '@/app/globalContext';
+import { WebAuthnSigner } from '../Transaction/webAuthnSigner';
+import { ERC20Abi } from '@/contracts/erc20';
+
 
 export default function CreateUser() {
     const [isError, setError] = useState<boolean>(false);
-
-    const setMyWallet = useStoreWallet(state => state.setMyStarknetWalletObject);
-
-    const setMyWalletAccount = useStoreWallet(state => state.setMyWalletAccount);
-
-    const setChain = useStoreWallet(state => state.setChain);
-    const setAddressAccount = useStoreWallet(state => state.setAddressAccount);
-
-    const setConnected = useStoreWallet(state => state.setConnected);
-
-    const setCurrentFrontendProviderIndex = useFrontendProvider(state => state.setCurrentFrontendProviderIndex);
-
-    const setWalletApi = useStoreWallet(state => state.setWalletApiList);
+    const [pubK, setPubK] = useState<string>("");
+    const [webAuthAddress, setWebAuthAddress] = useState<string>("");
+    const myWalletAccount = useStoreWallet(state => state.myWalletAccount);
+    const setWebAuthNAccount = useGlobalContext(state => state.setWebAuthNAccount)
 
 
-    async function selectW() {
-        setError(false);
-        const myWalletSWO = await connect({ modalMode: "alwaysAsk" });
-        if (myWalletSWO) {
-            const isValid = await checkCompatibility(myWalletSWO);
-            setError(!isValid);
-            if (isValid) { await handleSelectedWallet(myWalletSWO); }
-        }
+    function calculateSalt(pubK: BigNumberish): bigint {
+        return BigInt(pubK) & constants.MASK_250
     }
 
-    const checkCompatibility = async (myWalletSWO: WALLET_API.StarknetWindowObject) => {
-        // verify compatibility of wallet with the new API of get-starknet v4
-        let isCompatible: boolean = false;
+    function defineConstructor(readyWebAuthConstructor: WebAuthNUser): Calldata {
+        const calldataReady = new CallData(ReadyAccountAbi.abi);
+        const ReadyWebAuthn = new CairoCustomEnum({
+            Webauthn: {
+                origin: readyWebAuthConstructor.origin,
+                rp_id_hash: readyWebAuthConstructor.rp_id_hash,
+                pubkey: readyWebAuthConstructor.pubKey
+            }
+        });
+
+        const ReadyGuardian = new CairoOption(CairoOptionVariant.None);
+        const constructorReadyCallData = calldataReady.compile("constructor", {
+            owner: ReadyWebAuthn,
+            guardian: ReadyGuardian
+        });
+        console.log("constructor =", constructorReadyCallData);
+        return constructorReadyCallData;
+    }
+
+    function calculateAddress(ReadySigner: WebAuthNUser): string {
+        const constructorReadyCallData = defineConstructor(ReadySigner);
+        const salt = calculateSalt(ReadySigner.pubKey);
+        const accountReadyAddress = hash.calculateContractAddressFromHash(salt, ReadyAccountClassHash, constructorReadyCallData, 0);
+        console.log('Precalculated account address=', accountReadyAddress);
+        return accountReadyAddress;
+    }
+
+    async function deployAccount(webAuthnAttestation: WebAuthNUser) {
+        const newAddress = calculateAddress(webAuthnAttestation);
+        setWebAuthAddress(newAddress);
         try {
-            await myWalletSWO.request({ type: "wallet_supportedSpecs" });
-            isCompatible = true;
-        } catch {
-            (_err: any) => { console.log("Wallet compatibility failed.") };
-        }
-        return isCompatible;
-    }
+            await myWalletAccount?.getClassAt(newAddress);
+            console.error("Account is already existing.");
+            return;
+        } catch { }
 
-    const handleSelectedWallet = async (selectedWallet: WALLET_API.StarknetWindowObject) => {
-        console.log("Trying to connect wallet=", selectedWallet);
-        setMyWallet(selectedWallet); // zustand
-        setMyWalletAccount(await WalletAccount.connect(myFrontendProviders[2], selectedWallet));
-
-        const result = await wallet.requestAccounts(selectedWallet);
-        if (typeof (result) == "string") {
-            console.log("This Wallet is not compatible.");
+        const myCall: Call = {
+            contractAddress: constants.UDC.ADDRESS,
+            entrypoint: constants.UDC.ENTRYPOINT,
+            calldata: CallData.compile({
+                classHash: ReadyAccountClassHash,
+                salt: calculateSalt(webAuthnAttestation.pubKey),
+                unique: "0",
+                calldata: defineConstructor(webAuthnAttestation),
+            }),
+        };
+        console.log("Deploy of account in progress...\n", myCall);
+        try {
+            if (!myWalletAccount) {
+                console.log("WalletAccount is not defined.");
+                return;
+            }
+            const { transaction_hash: txHDepl }: InvokeFunctionResponse = await myWalletAccount.execute([myCall]);
+            console.log("account deployed with txH =", txHDepl);
+            await myWalletAccount.waitForTransaction(txHDepl);
+            const webAuthnSigner = new WebAuthnSigner(webAuthnAttestation);
+            const webAuthnAccount = new Account(myFrontendProviders[2], newAddress, webAuthnSigner);
+            // fund account
+            console.log("fund new account...");
+            const strkContract = new Contract(ERC20Abi.abi, strkAddress);
+            const transferCall = strkContract.populate("transfer", {
+                recipient: webAuthnAccount.address,
+                amount: 1n * 10n ** 17n,
+            });
+            console.log("transferCall =", transferCall);
+            const resp = await myWalletAccount.execute(transferCall);
+            console.log("transfer processed! With txH=", resp.transaction_hash);
+            const txR = await myWalletAccount.waitForTransaction(resp.transaction_hash);
+            console.log("txR transfer for funding =", txR);
+            console.log("Balance of new account (", webAuthnAccount.address, ") =\n", await strkContract.balanceOf(webAuthnAccount.address));
+            setWebAuthNAccount(webAuthnAccount);
+        } catch (err: any) {
+            console.log("Error during account deployment:", err);
             return;
         }
-        console.log("Current account addr =", result);
-        if (Array.isArray(result)) {
-            const addr = validateAndParseAddress(result[0]);
-            setAddressAccount(addr); // zustand
+
+    }
+
+
+
+    async function createUser() {
+        console.log("Create key...");
+        const origin = window.location.origin;
+        // const id = utils.randomPrivateKey();
+        const id: Uint8Array = encode.utf8ToArray("1");
+        const challenge: Uint8Array = utils.randomPrivateKey();
+        const credential = (await navigator.credentials.create({
+            publicKey: {
+                rp: {
+                    name: "Starknet WebAuthn",
+                    id: rpId,
+                },
+                user: {
+                    id,
+                    name: email,
+                    displayName: email,
+                },
+                challenge,
+                pubKeyCredParams: [
+                    { type: "public-key", alg: -7 }, // ECDSA with SHA-256
+                ],
+                authenticatorSelection: {
+                    userVerification: 'required',
+                },
+                attestation: "none",
+                extensions: { credProps: true },
+            }
+        })) as PublicKeyCredential;
+        if (!credential) {
+            throw new Error("No credential");
         }
-        const isConnectedWallet: boolean = await wallet.getPermissions(selectedWallet).then((res: any) => (res as WALLET_API.Permission[]).includes(WALLET_API.Permission.ACCOUNTS));
-        setConnected(isConnectedWallet); // zustand
-        if (isConnectedWallet) {
-            const chainId = (await wallet.requestChainId(selectedWallet)) as string;
-            setChain(chainId);
-            setCurrentFrontendProviderIndex(chainId === SNconstants.StarknetChainId.SN_MAIN ? 0 : 2);
-            console.log("change Provider index to :", chainId === SNconstants.StarknetChainId.SN_MAIN ? 0 : 2);
+        console.log("Credential created:", credential);
+        const credentialRawId = credential.rawId;
+        const fullPubKey = (credential.response as AuthenticatorAttestationResponse).getPublicKey();
+        if (fullPubKey === null) {
+            throw new Error("No public key in response.");
         }
-        // ********** TODO : replace supportedSpecs by api versions when available in SNJS & wallets
-        setWalletApi(await wallet.supportedSpecs(selectedWallet));
+        const pubKeyX = encode.addHexPrefix(encode.buf2hex(new Uint8Array(fullPubKey.slice(-64, -32)))); // first half is X part of the public key
+        console.log("user pubK =", pubKeyX);
+        setPubK(pubKeyX);
+        console.log("response :", { email, rpId, origin, credentialRawId, pubKey: pubKeyX });
+        const webAuthnSigner: WebAuthNUser = {
+            email: email,
+            origin: CallData.compile(origin.split("").map(shortString.encodeShortString)),
+            rpId,
+            rp_id_hash: encode.addHexPrefix(encode.buf2hex(sha256(rpId))),
+            credentialId: new Uint8Array(credentialRawId),
+            pubKey: pubKeyX,
+        };
+        console.log({ webAuthnSigner });
+        await deployAccount(webAuthnSigner);
     }
 
 
     return (
         <>
-            <Button
-                variant="surface"
-                  ml={4}
-                  px={5}
-                  fontWeight='bold'
-                onClick={() => selectW()}
-            >
-                Connect Wallet
-            </Button>
+            <Center>
+                <Button
+                    variant="surface"
+                    mt={3}
+                    ml={4}
+                    px={5}
+                    fontWeight='bold'
+                    onClick={() => createUser()}
+                >
+                    Activate user
+                </Button>
+            </Center>
+            <Center>
+                WebAuthN account address = {webAuthAddress}
+            </Center>
         </>
     )
 }

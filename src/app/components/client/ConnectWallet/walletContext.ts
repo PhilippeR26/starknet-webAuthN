@@ -41,7 +41,7 @@ export const useStoreWallet = create<Wallet_state>()(set => ({
     setAccount: (account: AccountInterface) => { set(_state => ({ account })) },
     provider: undefined,
     setProvider: (provider: ProviderInterface) => { set(_state => ({ provider: provider })) },
-    isConnected: false,
+    isConnected: true,
     setConnected: (isConnected: boolean) => { set(_state => ({ isConnected })) },
     displaySelectWalletUI: false,
     setSelectWalletUI: (displaySelectWalletUI: boolean) => { set(_state => ({ displaySelectWalletUI })) },

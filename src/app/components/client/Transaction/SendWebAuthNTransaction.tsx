@@ -4,8 +4,8 @@ import { useStoreWallet } from '../ConnectWallet/walletContext';
 import { Button, Center } from "@chakra-ui/react";
 import { connect } from '@starknet-io/get-starknet';
 import { WALLET_API } from '@starknet-io/types-js';
-import { validateAndParseAddress, wallet, WalletAccount, constants as SNconstants, num, encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract } from 'starknet';
-import { myFrontendProviders, ReadyAccountClassHash, strkAddress } from '@/utils/constants';
+import { validateAndParseAddress, wallet, WalletAccount, constants as SNconstants, num, encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract, config } from 'starknet';
+import { devnetAddress, devnetPrivK, devnetProvider, myFrontendProviders, ReadyAccountClassHash, addrSTRK } from '@/utils/constants';
 import { useFrontendProvider } from '../provider/providerContext';
 import { useState } from 'react';
 import { utils } from '@scure/starknet';
@@ -21,17 +21,19 @@ export default function SendWebAuthNTransaction() {
     const [inProgress, setInProgress] = useState<boolean>(false);
     const [pubK, setPubK] = useState<string>("");
     const [webAuthAddress, setWebAuthAddress] = useState<string>("");
-    const myWalletAccount = useStoreWallet(state => state.myWalletAccount);
+    // const myWalletAccount = useStoreWallet(state => state.myWalletAccount);
+    config.set("legacyMode",true);
+    const account0=new Account(devnetProvider,devnetAddress,devnetPrivK);
     const { webAuthNAccount } = useGlobalContext();
 
     async function sendTx() {
-        if (!!webAuthNAccount && !!myWalletAccount) {
+        if (!!webAuthNAccount && !!account0) {
             setInProgress(true);
-            const strkContract = new Contract(ERC20Abi.abi, strkAddress,myWalletAccount);
+            const strkContract = new Contract(ERC20Abi.abi, addrSTRK,account0);
             const balance=await strkContract.balanceOf(webAuthNAccount.address) as bigint;
             console.log("balance new account", webAuthNAccount.address,"=",balance);
             const transferCall = strkContract.populate("transfer", {
-                recipient: myWalletAccount.address,
+                recipient: account0.address,
                 amount: 2n * 10n ** 6n,
             });
             console.log("transfer =", transferCall);

@@ -23,7 +23,7 @@ export default async function Page() {
                     <Image src={starknetjsImg} alt='starknet.js' width={150} />
                 </Center>
                 <p className={styles.bgText}>
-                    Please connect to Sepolia Testnet network
+                    Please connect to Devnet v0.2.4 network
                 </p>
                 <div>
                     <DisplayConnected></DisplayConnected>

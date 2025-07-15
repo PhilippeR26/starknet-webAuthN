@@ -4,8 +4,8 @@ import { useStoreWallet } from './walletContext';
 import { Button, Center } from "@chakra-ui/react";
 import { connect } from '@starknet-io/get-starknet';
 import { WALLET_API } from '@starknet-io/types-js';
-import { validateAndParseAddress, wallet, WalletAccount, constants as SNconstants, num, encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract } from 'starknet';
-import { email, myFrontendProviders, ReadyAccountClassHash, rpId, strkAddress } from '@/utils/constants';
+import { validateAndParseAddress, wallet, WalletAccount, constants as SNconstants, num, encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract, config } from 'starknet';
+import { devnetAddress, devnetPrivK, devnetProvider, email, myFrontendProviders, ReadyAccountClassHash, rpId,  addrSTRK } from '@/utils/constants';
 import { useFrontendProvider } from '../provider/providerContext';
 import { useState } from 'react';
 import { utils } from '@scure/starknet';
@@ -22,7 +22,9 @@ export default function CreateUser() {
     const [isError, setError] = useState<boolean>(false);
     const [pubK, setPubK] = useState<string>("");
     const [webAuthAddress, setWebAuthAddress] = useState<string>("");
-    const myWalletAccount = useStoreWallet(state => state.myWalletAccount);
+    // const myWalletAccount = useStoreWallet(state => state.myWalletAccount);
+    config.set("legacyMode",true);
+    const account0=new Account(devnetProvider,devnetAddress,devnetPrivK);
     const setWebAuthNAccount = useGlobalContext(state => state.setWebAuthNAccount)
 
 
@@ -61,7 +63,7 @@ export default function CreateUser() {
         const newAddress = calculateAddress(webAuthnAttestation);
         setWebAuthAddress(newAddress);
         try {
-            await myWalletAccount?.getClassAt(newAddress);
+            await devnetProvider.getClassAt(newAddress);
             console.error("Account is already existing.");
             return;
         } catch { }
@@ -78,26 +80,22 @@ export default function CreateUser() {
         };
         console.log("Deploy of account in progress...\n", myCall);
         try {
-            if (!myWalletAccount) {
-                console.log("WalletAccount is not defined.");
-                return;
-            }
-            const { transaction_hash: txHDepl }: InvokeFunctionResponse = await myWalletAccount.execute([myCall]);
+            const { transaction_hash: txHDepl }: InvokeFunctionResponse = await account0.execute([myCall]);
             console.log("account deployed with txH =", txHDepl);
-            await myWalletAccount.waitForTransaction(txHDepl);
+            await account0.waitForTransaction(txHDepl);
             const webAuthnSigner = new WebAuthnSigner(webAuthnAttestation);
-            const webAuthnAccount = new Account(myFrontendProviders[2], newAddress, webAuthnSigner);
+            const webAuthnAccount = new Account(devnetProvider, newAddress, webAuthnSigner);
             // fund account
             console.log("fund new account...");
-            const strkContract = new Contract(ERC20Abi.abi, strkAddress);
+            const strkContract = new Contract(ERC20Abi.abi, addrSTRK,account0);
             const transferCall = strkContract.populate("transfer", {
                 recipient: webAuthnAccount.address,
                 amount: 1n * 10n ** 17n,
             });
             console.log("transferCall =", transferCall);
-            const resp = await myWalletAccount.execute(transferCall);
+            const resp = await account0.execute(transferCall);
             console.log("transfer processed! With txH=", resp.transaction_hash);
-            const txR = await myWalletAccount.waitForTransaction(resp.transaction_hash);
+            const txR = await account0.waitForTransaction(resp.transaction_hash);
             console.log("txR transfer for funding =", txR);
             console.log("Balance of new account (", webAuthnAccount.address, ") =\n", await strkContract.balanceOf(webAuthnAccount.address));
             setWebAuthNAccount(webAuthnAccount);

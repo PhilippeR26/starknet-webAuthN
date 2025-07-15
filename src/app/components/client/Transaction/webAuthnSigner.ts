@@ -288,9 +288,9 @@ export class WebAuthnSigner implements SignerInterface {
     console.log({ signer });
 
     console.log("WebauthnOwner signed, signature is:", signature);
-    const finalSignature = CallData.compile([
+    const finalSignature = CallData.compile([[
       signerTypeToCustomEnum(SignerType.Webauthn, { signer, signature }),
-    ]);
+    ]]);
     console.log({ finalSignature });
     return finalSignature;
 

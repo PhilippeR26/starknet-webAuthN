@@ -6,9 +6,8 @@ import { useStoreBlock, dataBlockInit, type DataBlock } from "./blockContext";
 import GetBalance from "../Contract/GetBalance";
 import { Text, Center, Box, Separator, Spinner } from "@chakra-ui/react";
 import styles from '../../../page.module.css'
-import * as constants from '@/type/constants';
 import { useFrontendProvider } from '../provider/providerContext';
-import { myFrontendProviders } from '@/utils/constants';
+import { addrETH, addrSTRK, myFrontendProviders } from '@/utils/constants';
   
 export default function DisplayBlockChain() {
 
@@ -78,9 +77,9 @@ export default function DisplayBlockChain() {
             {!!blockFromContext.block_number &&
                 <Box bg='yellow.300' color='black' borderWidth='1px' borderRadius='lg'>
                      <Center> Updated each new block :</Center>
-                    <GetBalance tokenAddress={constants.addrETH} ></GetBalance>
+                    <GetBalance tokenAddress={addrETH} ></GetBalance>
                     <Separator borderColor='gray.600'></Separator>
-                    <GetBalance tokenAddress={constants.addrSTRK} ></GetBalance> 
+                    <GetBalance tokenAddress={addrSTRK} ></GetBalance> 
 
                 </Box>
             }

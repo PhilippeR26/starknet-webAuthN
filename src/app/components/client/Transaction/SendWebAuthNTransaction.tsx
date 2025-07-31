@@ -41,6 +41,11 @@ export default function SendWebAuthNTransaction() {
             const txR = await webAuthNAccount.waitForTransaction(resp.transaction_hash);
             setInProgress(false);
             console.log("Transfer processed! TxR=", txR);
+            if (txR.isSuccess()||txR.isReverted()){
+                const bl=txR.value.block_number;
+                const resBl= await webAuthNAccount.getBlockWithTxs(bl);
+                console.log("tx=",resBl.transactions);
+            }
         } else {
             console.log("One account is not initialized.");
             setInProgress(false);

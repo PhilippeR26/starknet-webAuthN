@@ -293,9 +293,6 @@ export class WebAuthnSigner implements SignerInterface {
     ]]);
     console.log({ finalSignature });
     return finalSignature;
-
-    throw new Error("Temporary end of code.......");
-    return ec.starkCurve.sign(msgHash, "0x1234");
   }
 }
 

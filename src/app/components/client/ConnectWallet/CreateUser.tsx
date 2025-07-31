@@ -1,13 +1,13 @@
 "use client";
 
 import { useStoreWallet } from './walletContext';
-import { Button, Center } from "@chakra-ui/react";
+import { Button, Center, VStack } from "@chakra-ui/react";
 import { connect } from '@starknet-io/get-starknet';
 import { WALLET_API } from '@starknet-io/types-js';
-import { validateAndParseAddress, wallet, WalletAccount, constants as SNconstants, num, encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract, config } from 'starknet';
-import { devnetAddress, devnetPrivK, devnetProvider, email, myFrontendProviders, ReadyAccountClassHash, rpId,  addrSTRK } from '@/utils/constants';
+import { validateAndParseAddress, wallet, WalletAccount, constants as SNconstants, num, encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract, config, json } from 'starknet';
+import { devnetAddress, devnetPrivK, devnetProvider, email, myFrontendProviders, ReadyAccountClassHash, rpId, addrSTRK } from '@/utils/constants';
 import { useFrontendProvider } from '../provider/providerContext';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { utils } from '@scure/starknet';
 import { log } from 'console';
 import type { WebAuthNUser } from '@/type/types';
@@ -16,15 +16,17 @@ import { sha256 } from '@noble/hashes/sha2';
 import { useGlobalContext } from '@/app/globalContext';
 import { WebAuthnSigner } from '../Transaction/webAuthnSigner';
 import { ERC20Abi } from '@/contracts/erc20';
-
+import { usePersistentContext } from '@/app/persistentContext';
+import { useStore } from 'zustand'
 
 export default function CreateUser() {
     const [isError, setError] = useState<boolean>(false);
     const [pubK, setPubK] = useState<string>("");
     const [webAuthAddress, setWebAuthAddress] = useState<string>("");
+    const { userAttestation, setUserAttestation } = useStore(usePersistentContext, (state) => state);
     // const myWalletAccount = useStoreWallet(state => state.myWalletAccount);
-    config.set("legacyMode",true);
-    const account0=new Account(devnetProvider,devnetAddress,devnetPrivK);
+    config.set("legacyMode", true);
+    const account0 = new Account(devnetProvider, devnetAddress, devnetPrivK);
     const setWebAuthNAccount = useGlobalContext(state => state.setWebAuthNAccount)
 
 
@@ -87,7 +89,7 @@ export default function CreateUser() {
             const webAuthnAccount = new Account(devnetProvider, newAddress, webAuthnSigner);
             // fund account
             console.log("fund new account...");
-            const strkContract = new Contract(ERC20Abi.abi, addrSTRK,account0);
+            const strkContract = new Contract(ERC20Abi.abi, addrSTRK, account0);
             const transferCall = strkContract.populate("transfer", {
                 recipient: webAuthnAccount.address,
                 amount: 1n * 10n ** 17n,
@@ -105,8 +107,6 @@ export default function CreateUser() {
         }
 
     }
-
-
 
     async function createUser() {
         console.log("Create key...");
@@ -157,25 +157,70 @@ export default function CreateUser() {
             credentialId: new Uint8Array(credentialRawId),
             pubKey: pubKeyX,
         };
+        setUserAttestation(webAuthnSigner);
         console.log({ webAuthnSigner });
         await deployAccount(webAuthnSigner);
     }
 
+    async function deleteAccount() {
+        console.log("DeleteAccount...");
+        setUserAttestation(undefined);
+    }
+
+    useEffect(() => {
+        console.log("CreateUser useEffect ...");
+        if (!!userAttestation) {
+            const newAddress = calculateAddress(userAttestation);
+            console.log({newAddress});
+        setWebAuthAddress(newAddress);
+const webAuthnSigner = new WebAuthnSigner(userAttestation);
+            const webAuthnAccount = new Account(devnetProvider, newAddress, webAuthnSigner);
+            console.log(webAuthnAccount);
+            setWebAuthNAccount(webAuthnAccount);
+        } 
+    },
+        [userAttestation]
+    );
+
 
     return (
         <>
-            <Center>
-                <Button
-                    variant="surface"
-                    mt={3}
-                    ml={4}
-                    px={5}
-                    fontWeight='bold'
-                    onClick={() => createUser()}
-                >
-                    Activate user
-                </Button>
-            </Center>
+            {!userAttestation ?
+                <>
+                    <Center>
+                        <Button
+                            variant="surface"
+                            mt={3}
+                            ml={4}
+                            px={5}
+                            fontWeight='bold'
+                            onClick={() => createUser()}
+                        >
+                            Activate user
+                        </Button>
+                    </Center>
+                </>
+                :
+                <>
+                    <Center>
+                        <VStack>
+                        Existing account {json.stringify(userAttestation, undefined, 2)}
+                        <Button
+                            variant="surface"
+                            color={"red"}
+                            mt={3}
+                            ml={4}
+                            px={5}
+                            fontWeight='bold'
+                            onClick={() => deleteAccount()}
+                        >
+                            Delete Account
+                        </Button>
+                        </VStack>
+                    </Center>
+                </>
+            }
+
             <Center>
                 WebAuthN account address = {webAuthAddress}
             </Center>

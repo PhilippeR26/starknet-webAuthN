@@ -1,5 +1,5 @@
 import type { WebAuthNSignature, WebAuthNUser } from '@/type/types';
-import { findInArray, hex2Buf } from '@/utils/encode';
+import { findInArray, hex2Buf, typedArrayToBuffer } from '@/utils/encode';
 import {
   cairo,
   CairoCustomEnum,
@@ -17,7 +17,7 @@ import {
   V3DeployAccountSignerDetails,
   V3InvocationsSignerDetails,
 } from 'starknet';
-import { ETransactionVersion2, ETransactionVersion3 } from 'starknet';
+// import { ETransactionVersion2, ETransactionVersion3 } from 'starknet';
 import { CallData } from 'starknet';
 import { ec } from 'starknet';
 import { encode } from 'starknet';
@@ -32,21 +32,67 @@ import { SignerInterface } from 'starknet';
 import { p256 as secp256r1 } from "@noble/curves/p256";
 import { ECDSASigValue } from "@peculiar/asn1-ecc";
 import { AsnParser } from "@peculiar/asn1-schema";
-import { sha256 } from '@noble/hashes/sha2';
+import { sha256 } from '@noble/hashes/sha2.js';
 
+type ValuesType<T extends ReadonlyArray<any> | ArrayLike<any> | Record<any, any>> =
+  T extends ReadonlyArray<any>
+  ? T[number]
+  : T extends ArrayLike<any>
+  ? T[number]
+  : T extends object
+  ? T[keyof T]
+  : never;
+
+const ETransactionVersion2 = {
+  V0: '0x0',
+  V1: '0x1',
+  V2: '0x2',
+  F0: '0x100000000000000000000000000000000',
+  F1: '0x100000000000000000000000000000001',
+  F2: '0x100000000000000000000000000000002',
+} as const;
+
+type ETransactionVersion2 = ValuesType<typeof ETransactionVersion2>;
+
+/**
+ * V3 Transaction Versions
+ */
+const ETransactionVersion3 = {
+  V3: '0x3',
+  F3: '0x100000000000000000000000000000003',
+} as const;
+
+type ETransactionVersion3 = ValuesType<typeof ETransactionVersion3>;
 
 async function getBrowserSignature(attestation: WebAuthNUser, challenge: Uint8Array) {
-  const credential = await navigator.credentials.get({
+  console.log("challengeBuffer calculation...");
+  const challengeBuffer = typedArrayToBuffer(challenge);
+  console.log("idBuffer calculation...");
+  const idBuffer = typedArrayToBuffer(attestation.credentialId);
+  console.log("credential.get=",{
     publicKey: {
       rpId: attestation.rpId,
-      challenge,
+      challenge: challenge,
       allowCredentials: [{
         id: attestation.credentialId,
         type: "public-key",
         transports: ["internal"]
       }],
       userVerification: "required",
-      // timeout: 60000,
+      timeout: 60000,
+    },
+  });
+  const credential = await navigator.credentials.get({
+    publicKey: {
+      rpId: attestation.rpId,
+      challenge: challengeBuffer,
+      allowCredentials: [{
+        id: idBuffer,
+        type: "public-key",
+        transports: ["internal"]
+      }],
+      userVerification: "required",
+      timeout: 60000,
     },
   });
   if (!credential) {
@@ -61,11 +107,12 @@ export class WebAuthnSigner implements SignerInterface {
   protected attestation: WebAuthNUser;
 
   constructor(webAuthnAttestation: WebAuthNUser) {
+    console.log("signer constructor. attestation=",webAuthnAttestation);
     this.attestation = webAuthnAttestation;
   }
 
   public async getPubKey(): Promise<string> {
-    return num.toHex(this.attestation.pubKey);
+    return num.toHex(this.attestation.fullPubKey);
   }
 
   public async signMessage(typedData: TypedData, accountAddress: string): Promise<Signature> {
@@ -83,6 +130,12 @@ export class WebAuthnSigner implements SignerInterface {
     // TODO: How to do generic union discriminator for all like this
     if (Object.values(ETransactionVersion2).includes(details.version as any)) {
       const det = details as V2InvocationsSignerDetails;
+      console.log("signer details:",{
+        ...det,
+        senderAddress: det.walletAddress,
+        compiledCalldata,
+        version: det.version,
+      });
       msgHash = hash.calculateInvokeTransactionHash({
         ...det,
         senderAddress: det.walletAddress,
@@ -102,7 +155,7 @@ export class WebAuthnSigner implements SignerInterface {
     } else {
       throw Error('unsupported signTransaction version');
     }
-
+    console.log("txHash calculated=",msgHash);
     return this.signRaw(msgHash as string);
   }
 
@@ -205,10 +258,13 @@ export class WebAuthnSigner implements SignerInterface {
       throw new Error("Could not determine y_parity");
     };
 
+    // *** main
+    console.log("txHash calculated=",msgHash);
     const challenge = hex2Buf(`${encode.removeHexPrefix(num.toHex64(msgHash))}00`);
-    console.log({ challenge });
+    console.log("Challenge =", challenge );
+    console.log("this.attestation=",this.attestation);
     const browserSignature = await getBrowserSignature(this.attestation, challenge);
-    console.log("Browser signature:", browserSignature);
+    console.log("Browser signature:", browserSignature, "\n",encode.buf2hex(new Uint8Array(browserSignature.signature)), encode.arrayBufferToString(browserSignature.signature));
     const authenticatorData = new Uint8Array(browserSignature.authenticatorData);
     const clientDataJson = new Uint8Array(browserSignature.clientDataJSON);
     const flags = authenticatorData[32];
@@ -219,7 +275,7 @@ export class WebAuthnSigner implements SignerInterface {
     const crossOriginText = new TextEncoder().encode('"crossOrigin":false');
     const crossOriginIndex = findInArray(crossOriginText, clientDataJson);
     let clientDataJsonOutro = clientDataJson.slice(crossOriginIndex + crossOriginText.length);
-    console.log(clientDataJsonOutro);
+    console.log("clientDataJsonOutro=",clientDataJsonOutro);
     if (clientDataJsonOutro.length == 1) {
       clientDataJsonOutro = new Uint8Array();
     }
@@ -283,9 +339,9 @@ export class WebAuthnSigner implements SignerInterface {
     const signer = {
       origin: this.attestation.origin,
       rp_id_hash: uint256.bnToUint256(this.attestation.rp_id_hash),
-      pubkey: uint256.bnToUint256(this.attestation.pubKey),
+      pubkey: uint256.bnToUint256(this.attestation.fullPubKey),
     }
-    console.log({ signer });
+    console.log("signer=", signer );
 
     console.log("WebauthnOwner signed, signature is:", signature);
     const finalSignature = CallData.compile([[

@@ -17,3 +17,10 @@ export function findInArray(dataToFind: Uint8Array, arrayToIterate: Uint8Array):
         return dataToFind.toString() === slice.toString();
     });
 };
+
+export function typedArrayToBuffer(array: Uint8Array): ArrayBuffer {
+    console.log("typedArrayToBuffer. input =", array);
+    const a = array.buffer.slice(array.byteOffset, array.byteLength + array.byteOffset) as ArrayBuffer;
+    console.log("typedArrayToBuffer. output =", a);
+    return a
+}

@@ -28,23 +28,6 @@ export function DisplayConnected() {
                 </>
             ) : (
                 <>
-                    {/* <Center>
-                        <Button
-                            variant="surface"
-                            ml={4}
-                            px={5}
-                            fontWeight='bold'
-                            onClick={() => {
-                                useStoreWallet.setState({ isConnected: false });
-                            }}
-                        >
-                            {addressAccount
-                                ? `Your wallet : ${addressAccount?.slice(0, 7)}...${addressAccount?.slice(-4)} is connected`
-                                : "No Account"}
-                        </Button>
-                    </Center> 
-                    <br />
-                    <WalletDisplay walletData={stateWallet} ></WalletDisplay>*/}
                     <CreateUser></CreateUser>
                     {!!webAuthNAccount &&
                         <SendWebAuthNTransaction></SendWebAuthNTransaction>

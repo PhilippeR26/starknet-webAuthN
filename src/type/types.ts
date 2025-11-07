@@ -3,10 +3,12 @@ import type { BigNumberish, CairoCustomEnum, Uint256 } from "starknet";
 export type WebAuthNUser = {
     email: string,
     origin: BigNumberish[],
+    originText:string,
     rpId: string,
     rp_id_hash: BigNumberish,
     credentialId: Uint8Array,
-    pubKey: BigNumberish
+    pubKey: BigNumberish,
+    fullPubKey:BigNumberish,
   };
 
   export type WebAuthNSignature = {

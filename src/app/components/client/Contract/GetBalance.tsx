@@ -5,7 +5,7 @@ import { Contract, shortString } from "starknet";
 import { Text, Center, Spinner } from "@chakra-ui/react";
 import styles from '../../../page.module.css'
 import { erc20Abi } from "../../../contracts/abis/ERC20abi"
-import { myFrontendProviders } from '@/utils/constants';
+import { myFrontendProviders } from '@/app/utils/constants';
 import { useFrontendProvider } from '../provider/providerContext';
 
 
@@ -21,7 +21,7 @@ export default function GetBalance({ tokenAddress, accountAddress }: Props) {
 
     const myProviderIndex = useFrontendProvider(state => state.currentFrontendProviderIndex);
     const myProvider = myFrontendProviders[myProviderIndex];
-    const contract = new Contract(erc20Abi, tokenAddress, myProvider);
+    const contract = new Contract({ abi: erc20Abi, address: tokenAddress, providerOrAccount: myProvider });
 
     useEffect(() => {
         contract.call("decimals")

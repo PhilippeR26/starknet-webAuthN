@@ -1,6 +1,6 @@
 "use server";
 
-import type { UserStorage } from "@/type/types";
+import type { UserStorage } from "@/app/type/types";
 import { json } from "starknet";
 import fs from "fs";
 

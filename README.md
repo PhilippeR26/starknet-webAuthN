@@ -15,11 +15,18 @@ The DAPP is made in the Next.js framework. Coded in Typescript. Using React, Zus
 
 ## Getting Started 🚀
 
-Run the development server:
+- Run the development server:
 
 ```bash
 npm i
 npm run dev
+```
+
+- Launch starknet-devnet v0.6.1 : https://github.com/0xSpaceShard/starknet-devnet
+
+- Declare the Ready v0.4.0 account contract:
+```ts
+npx ts-node src/scripts/declareReadyClass.ts
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.  

@@ -4,11 +4,11 @@ import { Box, Button, Center, Field, Input, Text, VStack } from "@chakra-ui/reac
 import { useState } from 'react';
 import { useForm } from "react-hook-form";
 import QRCode from "react-qr-code";
-import { Contract, config, type GetTransactionReceiptResponse, type RevertedTransactionReceiptResponse, type SuccessfulTransactionReceiptResponse, } from 'starknet';
-import { addrSTRK, addrETH } from '@/utils/constants';
+import { Contract, config, type GetTransactionReceiptResponse, type ResourceBoundsBN, type RevertedTransactionReceiptResponse, type SuccessfulTransactionReceiptResponse, } from 'starknet';
+import { addrSTRK, addrETH } from '@/app/utils/constants';
 import { useGlobalContext } from '@/app/globalContext';
 import { ERC20Abi } from '@/contracts/erc20';
-import { convertAmount } from '@/utils/convertAmount';
+import { convertAmount } from '@/app/utils/convertAmount';
 import GetBalance from '../Contract/GetBalance';
 
 interface FormValues {
@@ -19,9 +19,6 @@ interface FormValues {
 
 export default function SendWebAuthNTransaction() {
     const [inProgress, setInProgress] = useState<boolean>(false);
-    const [pubK, setPubK] = useState<string>("");
-    const [webAuthAddress, setWebAuthAddress] = useState<string>("");
-    // const myWalletAccount = useStoreWallet(state => state.myWalletAccount);
     const { webAuthNAccount } = useGlobalContext();
     const [destAddress, setDestAddress] = useState<string>("");
     const [amount, setAmount] = useState<string>("");
@@ -43,24 +40,52 @@ export default function SendWebAuthNTransaction() {
             const qty = convertAmount(values.amount);
             setAmount(qty.toString());
             setInProgress(true);
-            const strkContract = new Contract(ERC20Abi.abi, addrSTRK, webAuthNAccount);
-            const ethContract = new Contract(ERC20Abi.abi, addrETH, webAuthNAccount);
+            const strkContract = new Contract({ abi: ERC20Abi.abi, address: addrSTRK, providerOrAccount: webAuthNAccount });
+            const ethContract = new Contract({ abi: ERC20Abi.abi, address: addrETH, providerOrAccount: webAuthNAccount });
             const balanceSTRK = await strkContract.balanceOf(webAuthNAccount.address) as bigint;
             const balanceETH = await ethContract.balanceOf(webAuthNAccount.address) as bigint;
             console.log("balance new account", webAuthNAccount.address, "=", balanceSTRK, "STRK\n", balanceETH, "ETH");
-            const transferCall = ethContract.populate("transfer", {
+            const transferCall = strkContract.populate("transfer", {
                 recipient: values.targetAddress,
                 amount: qty,
             });
             console.log("transfer =", transferCall);
-            const resp = await webAuthNAccount.execute(transferCall, { skipValidate: false, maxFee: 1e15 });
+            config.set('resourceBoundsOverhead', {
+                l1_gas: {
+                    max_amount: 50,
+                    max_price_per_unit: 50,
+                },
+                l2_gas: {
+                    max_amount: 5000,
+                    max_price_per_unit: 50,
+                },
+                l1_data_gas: {
+                    max_amount: 50,
+                    max_price_per_unit: 50,
+                },
+            });
+            const resources: ResourceBoundsBN = {
+                l2_gas: {
+                    max_amount: 1n * 10n ** 8n,
+                    max_price_per_unit: 1_500_000_000n //0x59682F00
+                },
+                l1_gas: {
+                    max_amount: 0n,
+                    max_price_per_unit: 1_500_000_000n
+                },
+                l1_data_gas: {
+                    max_amount: BigInt("0x210"),
+                    max_price_per_unit: 1_500_000_000n
+                }
+            }
+            const resp = await webAuthNAccount.execute(transferCall, { skipValidate: true, resourceBounds: resources });
             const txR = await webAuthNAccount.waitForTransaction(resp.transaction_hash);
             setTxR(txR);
             setInProgress(false);
             console.log("Transfer processed! TxR=", txR);
 
             txR.match({
-                success: async (txR: SuccessfulTransactionReceiptResponse) => {
+                SUCCEEDED: async (txR: SuccessfulTransactionReceiptResponse) => {
                     console.log('Success =', txR);
                     // const bl = (txR as InvokeTransactionReceiptResponse);
                     const resBl = await webAuthNAccount.getBlockWithTxs("latest");
@@ -78,7 +103,7 @@ export default function SendWebAuthNTransaction() {
     function recoverError(txR: GetTransactionReceiptResponse): string {
         let resp: string = "";
         txR.match({
-            reverted: (txR: RevertedTransactionReceiptResponse) => {
+            REVERTED: (txR: RevertedTransactionReceiptResponse) => {
                 resp = txR.execution_status + " " + txR.revert_reason
             },
             _: () => { resp = "" },
@@ -96,7 +121,7 @@ export default function SendWebAuthNTransaction() {
                 />
             </Center>
             <Center>
-                <GetBalance tokenAddress={addrETH} accountAddress={webAuthNAccount!.address} ></GetBalance>
+                <GetBalance tokenAddress={addrSTRK} accountAddress={webAuthNAccount!.address} ></GetBalance>
             </Center>
             <form onSubmit={handleSubmit(sendTx)}>
                 <Center>
@@ -118,7 +143,7 @@ export default function SendWebAuthNTransaction() {
                             </Field.ErrorText>
                         </Field.Root>
                         <Field.Root invalid={errors.amount as any}>
-                            <Field.Label htmlFor="amount0" pt={3} textStyle="xs"> ETH amount :</Field.Label>
+                            <Field.Label htmlFor="amount0" pt={3} textStyle="xs"> STRK amount :</Field.Label>
                             <Input w="30%"
                                 variant={'subtle'}
                                 bg="gray.400"

@@ -1,10 +1,10 @@
 "use client";
 
 import { Button, Center, Field, Group, Input, Spinner, VStack } from "@chakra-ui/react";
-import {encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract, config } from 'starknet';
-import { devnetAddress, devnetPrivK, devnetProvider, ReadyAccountClassHash, rpId, addrSTRK, addrETH } from '@/utils/constants';
+import { encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract, config } from 'starknet';
+import { devnetAddress, devnetPrivK, devnetProvider, ReadyAccountClassHash, rpId, addrSTRK, addrETH } from '@/app/utils/constants';
 import { useEffect, useState } from 'react';
-import type { WebAuthNUser } from '@/type/types';
+import type { WebAuthNUser } from '@/app/type/types';
 import { ReadyAccountAbi } from '@/contracts/ReadyAbi';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { useGlobalContext } from '@/app/globalContext';
@@ -12,7 +12,7 @@ import { WebAuthnSigner } from '../Transaction/webAuthnSigner';
 import { ERC20Abi } from '@/contracts/erc20';
 import { usePersistentContext } from '@/app/persistentContext';
 import { useStore } from 'zustand'
-import { typedArrayToBuffer } from '@/utils/encode';
+import { typedArrayToBuffer } from '@/app/utils/encode';
 import { getPrivKey, storeUser } from '@/app/server/managePubKeys';
 import { useForm } from "react-hook-form";
 
@@ -26,7 +26,7 @@ export default function CreateUser() {
   const { userAttestation, setUserAttestation } = useStore(usePersistentContext, (state) => state);
 
   config.set("legacyMode", true);
-  const account0 = new Account(devnetProvider, devnetAddress, devnetPrivK);
+  const account0 = new Account({ provider: devnetProvider, address: devnetAddress, signer: devnetPrivK });
   const { webAuthNAccount, setWebAuthNAccount } = useGlobalContext((state) => state);
 
   const {
@@ -99,15 +99,15 @@ export default function CreateUser() {
     };
     console.log("Deploy of account in progress...\n", myCall);
     try {
-      const { transaction_hash: txHDepl }: InvokeFunctionResponse = await account0.execute([myCall]);
+      const { transaction_hash: txHDepl }: InvokeFunctionResponse = await account0.execute(myCall);
       console.log("account deployed with txH =", txHDepl);
       await account0.waitForTransaction(txHDepl);
       const webAuthnSigner = new WebAuthnSigner(webAuthnAttestation);
-      const webAuthnAccount = new Account(devnetProvider, newAddress, webAuthnSigner);
+      const webAuthnAccount = new Account({ provider: devnetProvider, address: newAddress, signer: webAuthnSigner });
       // fund account
       console.log("fund new account...");
-      const strkContract = new Contract(ERC20Abi.abi, addrSTRK, account0);
-      const ethContract = new Contract(ERC20Abi.abi, addrETH, account0);
+      const strkContract = new Contract({ abi: ERC20Abi.abi, address: addrSTRK, providerOrAccount: account0 });
+      const ethContract = new Contract({ abi: ERC20Abi.abi, address: addrETH, providerOrAccount: account0 });
       const transferCallSTRK = strkContract.populate("transfer", {
         recipient: webAuthnAccount.address,
         amount: 1n * 10n ** 18n,
@@ -258,7 +258,7 @@ export default function CreateUser() {
       console.log("inputs for address. User:", userAttestation);
       console.log({ newAddress });
       const webAuthnSigner = new WebAuthnSigner(userAttestation);
-      const webAuthnAccount = new Account(devnetProvider, newAddress, webAuthnSigner);
+      const webAuthnAccount = new Account({ provider: devnetProvider, address: newAddress, signer: webAuthnSigner });
       console.log(webAuthnAccount);
       setWebAuthNAccount(webAuthnAccount);
     }
@@ -280,6 +280,9 @@ export default function CreateUser() {
                     <Input
                       w="100%"
                       h={8}
+                      px={2}
+                      mx={0}
+                      maxH={50}
                       variant={'subtle'}
                       bg="gray.400"
                       rounded={0}
@@ -298,7 +301,7 @@ export default function CreateUser() {
                   <Button
                     variant="surface"
                     mt={isValid ? 5 : 0}
-                    ml={0}
+                    mx={0}
                     px={2}
                     h={8}
                     fontWeight='bold'
@@ -329,7 +332,7 @@ export default function CreateUser() {
                 ml={4}
                 px={5}
                 fontWeight='bold'
-                    borderWidth={2}
+                borderWidth={2}
                 borderColor={"gray.400"}
                 onClick={() => readUser()}
               >

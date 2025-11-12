@@ -1,5 +1,5 @@
 "use client";
-import type { WebAuthNUser } from "@/type/types";
+import type { WebAuthNUser } from "@/app/type/types";
 import type { Account } from "starknet";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";

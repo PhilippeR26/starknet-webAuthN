@@ -1,7 +1,6 @@
-import type { WebAuthNSignature, WebAuthNUser } from '@/type/types';
-import { findInArray, hex2Buf, typedArrayToBuffer } from '@/utils/encode';
+import type { WebAuthNSignature, WebAuthNUser } from '@/app/type/types';
+import { findInArray, hex2Buf, typedArrayToBuffer } from '@/app/utils/encode';
 import {
-  cairo,
   CairoCustomEnum,
   Call,
   DeclareSignerDetails,
@@ -10,59 +9,24 @@ import {
   Signature,
   TypedData,
   uint256,
-  V2DeclareSignerDetails,
-  V2DeployAccountSignerDetails,
-  V2InvocationsSignerDetails,
   V3DeclareSignerDetails,
   V3DeployAccountSignerDetails,
   V3InvocationsSignerDetails,
+  typedData as starknetTypedData, 
+  SignerInterface,
+  num,
+  stark,
+  transaction,
+  hash,
+  encode,
+  CallData,
 } from 'starknet';
-// import { ETransactionVersion2, ETransactionVersion3 } from 'starknet';
-import { CallData } from 'starknet';
-import { ec } from 'starknet';
-import { encode } from 'starknet';
-import {
-  hash
-} from 'starknet';
-import { num } from 'starknet';
-import { stark } from 'starknet';
-import { transaction } from 'starknet';
-import { typedData as starknetTypedData } from 'starknet';
-import { SignerInterface } from 'starknet';
+import { ETransactionVersion3 } from "@starknet-io/types-js";
 import { p256 } from "@noble/curves/nist.js";
 import { ECDSASigValue } from "@peculiar/asn1-ecc";
 import { AsnParser } from "@peculiar/asn1-schema";
 import { sha256 } from '@noble/hashes/sha2.js';
 
-type ValuesType<T extends ReadonlyArray<any> | ArrayLike<any> | Record<any, any>> =
-  T extends ReadonlyArray<any>
-  ? T[number]
-  : T extends ArrayLike<any>
-  ? T[number]
-  : T extends object
-  ? T[keyof T]
-  : never;
-
-const ETransactionVersion2 = {
-  V0: '0x0',
-  V1: '0x1',
-  V2: '0x2',
-  F0: '0x100000000000000000000000000000000',
-  F1: '0x100000000000000000000000000000001',
-  F2: '0x100000000000000000000000000000002',
-} as const;
-
-type ETransactionVersion2 = ValuesType<typeof ETransactionVersion2>;
-
-/**
- * V3 Transaction Versions
- */
-const ETransactionVersion3 = {
-  V3: '0x3',
-  F3: '0x100000000000000000000000000000003',
-} as const;
-
-type ETransactionVersion3 = ValuesType<typeof ETransactionVersion3>;
 
 async function getBrowserSignature(attestation: WebAuthNUser, challenge: Uint8Array) {
   console.log("challengeBuffer calculation...");
@@ -126,7 +90,6 @@ export class WebAuthnSigner implements SignerInterface {
     const msgHash = starknetTypedData.getMessageHash(typedData, accountAddress);
     return this.signRaw(msgHash);
   }
-
   public async signTransaction(
     transactions: Call[],
     details: InvocationsSignerDetails
@@ -135,21 +98,7 @@ export class WebAuthnSigner implements SignerInterface {
     let msgHash;
 
     // TODO: How to do generic union discriminator for all like this
-    if (Object.values(ETransactionVersion2).includes(details.version as any)) {
-      const det = details as V2InvocationsSignerDetails;
-      console.log("signer details:", {
-        ...det,
-        senderAddress: det.walletAddress,
-        compiledCalldata,
-        version: det.version,
-      });
-      msgHash = hash.calculateInvokeTransactionHash({
-        ...det,
-        senderAddress: det.walletAddress,
-        compiledCalldata,
-        version: det.version,
-      });
-    } else if (Object.values(ETransactionVersion3).includes(details.version as any)) {
+    if (Object.values(ETransactionVersion3).includes(details.version as any)) {
       const det = details as V3InvocationsSignerDetails;
       msgHash = hash.calculateInvokeTransactionHash({
         ...det,
@@ -162,7 +111,7 @@ export class WebAuthnSigner implements SignerInterface {
     } else {
       throw Error('unsupported signTransaction version');
     }
-    console.log("txHash calculated=", msgHash);
+
     return this.signRaw(msgHash as string);
   }
 
@@ -173,15 +122,7 @@ export class WebAuthnSigner implements SignerInterface {
     /*     const version = BigInt(details.version).toString(); */
     let msgHash;
 
-    if (Object.values(ETransactionVersion2).includes(details.version as any)) {
-      const det = details as V2DeployAccountSignerDetails;
-      msgHash = hash.calculateDeployAccountTransactionHash({
-        ...det,
-        salt: det.addressSalt,
-        constructorCalldata: compiledConstructorCalldata,
-        version: det.version,
-      });
-    } else if (Object.values(ETransactionVersion3).includes(details.version as any)) {
+    if (Object.values(ETransactionVersion3).includes(details.version as any)) {
       const det = details as V3DeployAccountSignerDetails;
       msgHash = hash.calculateDeployAccountTransactionHash({
         ...det,
@@ -204,13 +145,7 @@ export class WebAuthnSigner implements SignerInterface {
   ): Promise<Signature> {
     let msgHash;
 
-    if (Object.values(ETransactionVersion2).includes(details.version as any)) {
-      const det = details as V2DeclareSignerDetails;
-      msgHash = hash.calculateDeclareTransactionHash({
-        ...det,
-        version: det.version,
-      });
-    } else if (Object.values(ETransactionVersion3).includes(details.version as any)) {
+    if (Object.values(ETransactionVersion3).includes(details.version as any)) {
       const det = details as V3DeclareSignerDetails;
       msgHash = hash.calculateDeclareTransactionHash({
         ...det,
@@ -318,8 +253,8 @@ export class WebAuthnSigner implements SignerInterface {
         y_parity: yParity,
       },
       sha256_implementation: new CairoCustomEnum({
-        Cairo0: {},
-        Cairo1: undefined,
+        Cairo0: undefined ,
+        Cairo1: {},
       }),
     };
     // "argent::signer::signer_signature::SignerSignature"

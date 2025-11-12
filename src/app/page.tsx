@@ -14,14 +14,14 @@ export default async function Page() {
     return (
             <div>
                 <p className={styles.bgText}>
-                    Test webAuthN with starknet.js v6.23.1
+                    Test webAuthN with starknet.js v8.8.0
                 </p>
                 <Center>
                     <Image src={webAuthnImg} alt='webAuthN' width={150} />
                     <Image src={starknetjsImg} alt='starknet.js' width={150} />
                 </Center>
                 <p className={styles.bgText}>
-                    Please connect to Devnet v0.2.4 network
+                    Please connect to Devnet v0.6.1 network
                 </p>
                 <div>
                     <DisplayConnected></DisplayConnected>

@@ -13,7 +13,7 @@ export const myFrontendProviders: RpcProvider[] = [
     new RpcProvider({ nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_9/" + process.env.NEXT_PUBLIC_PROVIDER_URL }), // Sepolia testnet
     devnetProvider, // Sepolia testnet
 ];
-export const ReadyAccountClassHash = "0x036078334509b514626504edc9fb252328d1a240e4e948bef8d0c08dff45927f";
+export const ReadyAccountClassHash = "0x036078334509b514626504edc9fb252328d1a240e4e948bef8d0c08dff45927f"; // v0.4.0
 
 export const rpId = "localhost";
 export const devnetAddress = "0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691";

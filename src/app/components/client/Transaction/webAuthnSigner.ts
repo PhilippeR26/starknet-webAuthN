@@ -29,7 +29,7 @@ import { stark } from 'starknet';
 import { transaction } from 'starknet';
 import { typedData as starknetTypedData } from 'starknet';
 import { SignerInterface } from 'starknet';
-import { p256 as secp256r1 } from "@noble/curves/p256";
+import { p256 } from "@noble/curves/nist.js";
 import { ECDSASigValue } from "@peculiar/asn1-ecc";
 import { AsnParser } from "@peculiar/asn1-schema";
 import { sha256 } from '@noble/hashes/sha2.js';
@@ -68,8 +68,15 @@ async function getBrowserSignature(attestation: WebAuthNUser, challenge: Uint8Ar
   console.log("challengeBuffer calculation...");
   const challengeBuffer = typedArrayToBuffer(challenge);
   console.log("idBuffer calculation...");
-  const idBuffer = typedArrayToBuffer(attestation.credentialId);
-  console.log("credential.get=",{
+  let idBuffer: BufferSource;
+  if (typeof attestation.credentialId === 'object' && attestation.credentialId !== null) {
+    // persistent context is converting Uint8array to an object.
+    // So, it has to be converted.
+    idBuffer = Buffer.from(Object.values(attestation.credentialId));
+  } else {
+    idBuffer = typedArrayToBuffer(attestation.credentialId);
+  }
+  console.log("credential.get=", {
     publicKey: {
       rpId: attestation.rpId,
       challenge: challenge,
@@ -107,12 +114,12 @@ export class WebAuthnSigner implements SignerInterface {
   protected attestation: WebAuthNUser;
 
   constructor(webAuthnAttestation: WebAuthNUser) {
-    console.log("signer constructor. attestation=",webAuthnAttestation);
+    console.log("signer constructor. attestation=", webAuthnAttestation);
     this.attestation = webAuthnAttestation;
   }
 
   public async getPubKey(): Promise<string> {
-    return num.toHex(this.attestation.fullPubKey);
+    return num.toHex(this.attestation.pubKey);
   }
 
   public async signMessage(typedData: TypedData, accountAddress: string): Promise<Signature> {
@@ -130,7 +137,7 @@ export class WebAuthnSigner implements SignerInterface {
     // TODO: How to do generic union discriminator for all like this
     if (Object.values(ETransactionVersion2).includes(details.version as any)) {
       const det = details as V2InvocationsSignerDetails;
-      console.log("signer details:",{
+      console.log("signer details:", {
         ...det,
         senderAddress: det.walletAddress,
         compiledCalldata,
@@ -155,7 +162,7 @@ export class WebAuthnSigner implements SignerInterface {
     } else {
       throw Error('unsupported signTransaction version');
     }
-    console.log("txHash calculated=",msgHash);
+    console.log("txHash calculated=", msgHash);
     return this.signRaw(msgHash as string);
   }
 
@@ -224,7 +231,7 @@ export class WebAuthnSigner implements SignerInterface {
      *
      * See https://www.w3.org/TR/webauthn-2/#sctn-signature-attestation-types
      */
-    const parseASN1Signature = (asn1Signature: BufferSource) => {
+    function parseASN1Signature(asn1Signature: BufferSource): { r: bigint; s: bigint } {
       const signature = AsnParser.parse(asn1Signature, ECDSASigValue);
       console.log("parseASN1Signature", signature);
       let r = new Uint8Array(signature.r);
@@ -239,19 +246,37 @@ export class WebAuthnSigner implements SignerInterface {
       return { r: BigInt(encode.addHexPrefix(encode.buf2hex(r))), s: BigInt(encode.addHexPrefix(encode.buf2hex(s))) };
     };
 
-    const getMessageHash = (authenticatorData: Uint8Array, clientDataJson: Uint8Array) => {
+    /**
+     * Google authenticator can provide a high-s Secp256r1 (p256) signature, that is rejected by the account.
+     * This function normalizes the s value to be in the lower half of the curve order.
+     * @param { r0, s0 } - non normalized signature (without parity)
+     * @returns normalized signature (without parity)
+     */
+    function normalizeSecp256r1Signature({ r0, s0 }: { r0: bigint, s0: bigint }): { r: bigint, s: bigint } {
+      const p256N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
+      const halfOrder = p256N / 2n;
+      const normalizedS = s0 > halfOrder ? p256N - s0 : s0;
+      const normalizedSig = { r: r0, s: normalizedS };
+      return normalizedSig;
+    }
+
+    function getMessageHash(authenticatorData: Uint8Array, clientDataJson: Uint8Array): Uint8Array {
       const clientDataHash = sha256(clientDataJson);
       const message = encode.concatenateArrayBuffer([authenticatorData, clientDataHash]);
       return sha256(message);
     };
 
-    const getYParity = (messageHash: Uint8Array, pubkey: bigint, r: bigint, s: bigint) => {
-      const signature = new secp256r1.Signature(r, s);
+    function getYParity(messageHash: Uint8Array, pubkey: bigint, r: bigint, s: bigint): boolean {
+      console.log("pubKey for y_parity=", num.toHex(pubkey));
+      const signature = new p256.Signature(r, s);
       const recoveredEven = signature.addRecoveryBit(0).recoverPublicKey(messageHash);
+      console.log("recoveredEven=", num.toHex(recoveredEven.x));
       if (pubkey === recoveredEven.x) {
         return false;
       }
       const recoveredOdd = signature.addRecoveryBit(1).recoverPublicKey(messageHash);
+      console.log("recoveredOdd=", num.toHex(recoveredOdd.x));
+
       if (pubkey === recoveredOdd.x) {
         return true;
       }
@@ -259,12 +284,12 @@ export class WebAuthnSigner implements SignerInterface {
     };
 
     // *** main
-    console.log("txHash calculated=",msgHash);
+    console.log("txHash calculated=", msgHash);
     const challenge = hex2Buf(`${encode.removeHexPrefix(num.toHex64(msgHash))}00`);
-    console.log("Challenge =", challenge );
-    console.log("this.attestation=",this.attestation);
+    console.log("Challenge =", challenge);
+    console.log("this.attestation=", this.attestation);
     const browserSignature = await getBrowserSignature(this.attestation, challenge);
-    console.log("Browser signature:", browserSignature, "\n",encode.buf2hex(new Uint8Array(browserSignature.signature)), encode.arrayBufferToString(browserSignature.signature));
+    console.log("Browser signature:", browserSignature, "\n", encode.buf2hex(new Uint8Array(browserSignature.signature)), encode.arrayBufferToString(browserSignature.signature));
     const authenticatorData = new Uint8Array(browserSignature.authenticatorData);
     const clientDataJson = new Uint8Array(browserSignature.clientDataJSON);
     const flags = authenticatorData[32];
@@ -275,11 +300,12 @@ export class WebAuthnSigner implements SignerInterface {
     const crossOriginText = new TextEncoder().encode('"crossOrigin":false');
     const crossOriginIndex = findInArray(crossOriginText, clientDataJson);
     let clientDataJsonOutro = clientDataJson.slice(crossOriginIndex + crossOriginText.length);
-    console.log("clientDataJsonOutro=",clientDataJsonOutro);
+    console.log("clientDataJsonOutro=", clientDataJsonOutro);
     if (clientDataJsonOutro.length == 1) {
       clientDataJsonOutro = new Uint8Array();
     }
-    let { r, s } = parseASN1Signature(browserSignature.signature);
+    let { r: rRaw, s: sRaw } = parseASN1Signature(browserSignature.signature);
+    const { r, s } = normalizeSecp256r1Signature({ r0: rRaw, s0: sRaw });
     let yParity = getYParity(getMessageHash(authenticatorData, clientDataJson), BigInt(await this.getPubKey()), r, s);
     const signature: WebAuthNSignature = {
       cross_origin: false,
@@ -339,9 +365,9 @@ export class WebAuthnSigner implements SignerInterface {
     const signer = {
       origin: this.attestation.origin,
       rp_id_hash: uint256.bnToUint256(this.attestation.rp_id_hash),
-      pubkey: uint256.bnToUint256(this.attestation.fullPubKey),
+      pubkey: uint256.bnToUint256(this.attestation.pubKey),
     }
-    console.log("signer=", signer );
+    console.log("signer=", signer);
 
     console.log("WebauthnOwner signed, signature is:", signature);
     const finalSignature = CallData.compile([[

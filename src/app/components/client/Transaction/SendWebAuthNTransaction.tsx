@@ -1,19 +1,20 @@
 "use client";
 
-import { useStoreWallet } from '../ConnectWallet/walletContext';
-import { Button, Center } from "@chakra-ui/react";
-import { connect } from '@starknet-io/get-starknet';
-import { WALLET_API } from '@starknet-io/types-js';
-import { validateAndParseAddress, wallet, WalletAccount, constants as SNconstants, num, encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract, config, type SuccessfulTransactionReceiptResponse, type InvokeTransactionReceiptResponse } from 'starknet';
-import { devnetAddress, devnetPrivK, devnetProvider, myFrontendProviders, ReadyAccountClassHash, addrSTRK, addrETH } from '@/utils/constants';
-import { useFrontendProvider } from '../provider/providerContext';
+import { Box, Button, Center, Field, Input, Text, VStack } from "@chakra-ui/react";
 import { useState } from 'react';
-import { utils } from '@scure/starknet';
-import { log } from 'console';
-import type { WebAuthNUser } from '@/type/types';
-import { ReadyAccountAbi } from '@/contracts/ReadyAbi';
+import { useForm } from "react-hook-form";
+import QRCode from "react-qr-code";
+import { Contract, config, type GetTransactionReceiptResponse, type RevertedTransactionReceiptResponse, type SuccessfulTransactionReceiptResponse, } from 'starknet';
+import { addrSTRK, addrETH } from '@/utils/constants';
 import { useGlobalContext } from '@/app/globalContext';
 import { ERC20Abi } from '@/contracts/erc20';
+import { convertAmount } from '@/utils/convertAmount';
+import GetBalance from '../Contract/GetBalance';
+
+interface FormValues {
+    targetAddress: string,
+    amount: string
+}
 
 
 export default function SendWebAuthNTransaction() {
@@ -21,25 +22,40 @@ export default function SendWebAuthNTransaction() {
     const [pubK, setPubK] = useState<string>("");
     const [webAuthAddress, setWebAuthAddress] = useState<string>("");
     // const myWalletAccount = useStoreWallet(state => state.myWalletAccount);
-    config.set("legacyMode", true);
-    const account0 = new Account(devnetProvider, devnetAddress, devnetPrivK);
     const { webAuthNAccount } = useGlobalContext();
+    const [destAddress, setDestAddress] = useState<string>("");
+    const [amount, setAmount] = useState<string>("");
+    const [txR, setTxR] = useState<GetTransactionReceiptResponse | undefined>(undefined);
 
-    async function sendTx() {
-        if (!!webAuthNAccount && !!account0) {
+    config.set("legacyMode", true);
+
+    const {
+        handleSubmit,
+        register,
+        formState: { errors, isSubmitting, isValid }
+    } = useForm<FormValues>();
+
+
+    async function sendTx(values: FormValues) {
+        if (!!webAuthNAccount) {
+            setTxR(undefined);
+            setDestAddress(values.targetAddress);
+            const qty = convertAmount(values.amount);
+            setAmount(qty.toString());
             setInProgress(true);
-            const strkContract = new Contract(ERC20Abi.abi, addrSTRK, account0);
-            const ethContract = new Contract(ERC20Abi.abi, addrETH, account0);
+            const strkContract = new Contract(ERC20Abi.abi, addrSTRK, webAuthNAccount);
+            const ethContract = new Contract(ERC20Abi.abi, addrETH, webAuthNAccount);
             const balanceSTRK = await strkContract.balanceOf(webAuthNAccount.address) as bigint;
             const balanceETH = await ethContract.balanceOf(webAuthNAccount.address) as bigint;
             console.log("balance new account", webAuthNAccount.address, "=", balanceSTRK, "STRK\n", balanceETH, "ETH");
             const transferCall = ethContract.populate("transfer", {
-                recipient: 69,
-                amount: 1n,
+                recipient: values.targetAddress,
+                amount: qty,
             });
             console.log("transfer =", transferCall);
             const resp = await webAuthNAccount.execute(transferCall, { skipValidate: false, maxFee: 1e15 });
             const txR = await webAuthNAccount.waitForTransaction(resp.transaction_hash);
+            setTxR(txR);
             setInProgress(false);
             console.log("Transfer processed! TxR=", txR);
 
@@ -59,22 +75,81 @@ export default function SendWebAuthNTransaction() {
         }
     }
 
+    function recoverError(txR: GetTransactionReceiptResponse): string {
+        let resp: string = "";
+        txR.match({
+            reverted: (txR: RevertedTransactionReceiptResponse) => {
+                resp = txR.execution_status + " " + txR.revert_reason
+            },
+            _: () => { resp = "" },
+        })
+        return resp;
+    }
+
     return (
         <>
-            <Center>
-                <Button
-                    variant="surface"
-                    mt={3}
-                    ml={4}
-                    px={5}
-                    fontWeight='bold'
-                    onClick={
-                        () => sendTx()
-                    }
-                >
-                    Send transaction
-                </Button>
+            <Center pb={2} pt={3}>
+                <QRCode
+                    value={webAuthNAccount!.address}
+                    size={150}
+                    level="M"
+                />
             </Center>
+            <Center>
+                <GetBalance tokenAddress={addrETH} accountAddress={webAuthNAccount!.address} ></GetBalance>
+            </Center>
+            <form onSubmit={handleSubmit(sendTx)}>
+                <Center>
+                    <VStack w="500px">
+                        <Field.Root invalid={errors.targetAddress as any}>
+                            <Field.Label htmlFor="encoded" textStyle="xs"> Destination address (0x 64 characters) :</Field.Label>
+                            <Input w="100%" minH={50} maxH={500}
+                                variant={'subtle'}
+                                bg="gray.400"
+                                defaultValue={destAddress}
+                                id="encoded"
+                                {...register("targetAddress", {
+                                    required: "This is required. Ex: 0x0123..a2c", pattern: /^(0x)?[0-9a-fA-F]{64}$/
+                                })}
+                            />
+                            <Field.ErrorText color={"darkred"}>
+                                {errors.targetAddress && errors.targetAddress.message}
+                                {errors.targetAddress && errors.targetAddress.type == "pattern" && <span>Not a 64 char hex address</span>}
+                            </Field.ErrorText>
+                        </Field.Root>
+                        <Field.Root invalid={errors.amount as any}>
+                            <Field.Label htmlFor="amount0" pt={3} textStyle="xs"> ETH amount :</Field.Label>
+                            <Input w="30%"
+                                variant={'subtle'}
+                                bg="gray.400"
+                                defaultValue={amount}
+                                id="amount0"
+                                {...register("amount", {
+                                    required: "This is required. Ex: 0.001",
+                                    pattern: /^\d+[\.,]?\d*$/
+                                })}
+                            />
+                            <Field.ErrorText color={"darkred"}>
+                                {errors.amount && errors.amount.message}
+                                {errors.amount && errors.amount.type == "pattern" && <span>Not a number</span>}
+                            </Field.ErrorText>
+                        </Field.Root>
+                    </VStack>
+                </Center>
+                <Center>
+                    <Button
+                        variant="surface"
+                        mt={3}
+                        ml={4}
+                        px={5}
+                        fontWeight='bold'
+                        loading={isSubmitting}
+                        type="submit"
+                    >
+                        Send transaction
+                    </Button>
+                </Center>
+            </form >
             <Center>
                 {!!inProgress &&
                     <>
@@ -82,6 +157,46 @@ export default function SendWebAuthNTransaction() {
                     </>
                 }
             </Center>
+            {!!txR && <>
+                {txR.isSuccess() ? (
+                    <>
+                        <Center>
+                            <Box
+                                bg={"green"}
+                                color={"black"}
+                                // borderWidth='3px'
+                                borderColor='green.800'
+                                borderRadius='full'
+                                fontWeight={"bold"}
+                                padding={2}
+                                margin={3}
+                            >
+                                Accepted in Starknet.
+                            </Box>
+                        </Center>
+                    </>) : (
+                    <>
+                        <Center>
+                            <Box
+                                bg={"orange"}
+                                color={"darkred"}
+                                // borderWidth='4px'
+                                borderColor='red'
+                                borderRadius='xl'
+                                fontWeight={"bold"}
+                                padding={2}
+                                margin={3}
+                            >
+                                Rejected by starknet :
+                                {recoverError(txR)}
+                            </Box>
+                        </Center>
+                    </>
+                )
+                }
+            </>
+            }
+            <Text mb={20}></Text>
         </>
     )
 }

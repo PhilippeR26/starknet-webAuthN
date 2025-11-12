@@ -29,7 +29,7 @@ npm run dev
 npx ts-node src/scripts/declareReadyClass.ts
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.  
+Open [http://localhost:5173](http://localhost:5173) with your browser to see the result.  
 
 ## Deploy on Vercel 🎊
 

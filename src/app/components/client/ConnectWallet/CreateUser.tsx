@@ -117,7 +117,7 @@ export default function CreateUser() {
         amount: 1n * 10n ** 17n,
       });
       console.log("transferCallSTRK&ETH =", transferCallSTRK, transferCallETH);
-      const resp = await account0.execute([transferCallSTRK, transferCallETH]);
+      const resp = await account0.execute([transferCallSTRK, transferCallETH],{tip:0n});
       console.log("transfer processed! With txH=", resp.transaction_hash);
       const txR = await account0.waitForTransaction(resp.transaction_hash);
       console.log("txR transfer for funding =", txR);
@@ -169,7 +169,9 @@ export default function CreateUser() {
       throw new Error("No credential");
     }
     console.log("Credential created:", credential);
+      console.log("credential JSON=",credential.toJSON());
     const credentialRawId = credential.rawId;
+    const credentialIdText = credential.id;
     const fullPubKey = (credential.response as AuthenticatorAttestationResponse).getPublicKey();
     if (fullPubKey === null) {
       throw new Error("No public key in response.");
@@ -190,6 +192,7 @@ export default function CreateUser() {
       rpId,
       rp_id_hash: encode.addHexPrefix(encode.buf2hex(sha256(new TextEncoder().encode(rpId)))),
       credentialId: new Uint8Array(credentialRawId),
+      credentialIdText,
       pubKey: pubKeyX,
     };
     console.log({ webAuthnSigner });
@@ -216,7 +219,9 @@ export default function CreateUser() {
         throw new Error("No credential");
       }
       console.log("Credential created:", credential);
+      console.log("credential JSON=",credential.toJSON());
       const credentialRawId = credential.rawId;
+      const credentialIdText = credential.id;
       const { pubKey, userName } = await getPrivKey(credential.id);
       if (pubKey === null) {
         throw new Error("No public key in response.");
@@ -231,6 +236,7 @@ export default function CreateUser() {
         rpId,
         rp_id_hash: encode.addHexPrefix(encode.buf2hex(sha256(new TextEncoder().encode(rpId)))),
         credentialId: new Uint8Array(credentialRawId),
+        credentialIdText, 
         pubKey: pubKey,
       };
       setUserAttestation(webAuthnSigner);

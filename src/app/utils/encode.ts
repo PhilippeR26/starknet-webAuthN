@@ -1,9 +1,9 @@
 /**
  * 
- * @param hex Convert a hex string to an Uint8Array
+ * @param hex Convert a hex string (without 0x) to an Uint8Array
  * @returns 
  */
-export function hex2Buf(hex: string): Uint8Array {
+export function hex2Uint8Array(hex: string): Uint8Array {
     return new Uint8Array(
         hex
             .match(/.{1,2}/g)!

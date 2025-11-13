@@ -1,5 +1,5 @@
 import type { WebAuthNSignature, WebAuthNUser } from '@/app/type/types';
-import { findInArray, hex2Buf, typedArrayToBuffer } from '@/app/utils/encode';
+import { findInArray, hex2Uint8Array, typedArrayToBuffer } from '@/app/utils/encode';
 import {
   CairoCustomEnum,
   Call,
@@ -42,10 +42,9 @@ async function getBrowserSignature(attestation: WebAuthNUser, challenge: Uint8Ar
   }
   console.log("credential.get=", {
     publicKey: {
-      rpId: attestation.rpId,
       challenge: challenge,
       allowCredentials: [{
-        id: attestation.credentialId,
+        id: idBuffer,
         type: "public-key",
         transports: ["internal"]
       }],
@@ -53,9 +52,9 @@ async function getBrowserSignature(attestation: WebAuthNUser, challenge: Uint8Ar
       timeout: 60000,
     },
   });
+
   const credential = await navigator.credentials.get({
     publicKey: {
-      rpId: attestation.rpId,
       challenge: challengeBuffer,
       allowCredentials: [{
         id: idBuffer,
@@ -220,7 +219,7 @@ export class WebAuthnSigner implements SignerInterface {
 
     // *** main
     console.log("txHash calculated=", msgHash);
-    const challenge = hex2Buf(`${encode.removeHexPrefix(num.toHex64(msgHash))}00`);
+    const challenge = hex2Uint8Array(encode.removeHexPrefix(num.toHex64(msgHash)));
     console.log("Challenge =", challenge);
     console.log("this.attestation=", this.attestation);
     const browserSignature = await getBrowserSignature(this.attestation, challenge);
@@ -243,7 +242,6 @@ export class WebAuthnSigner implements SignerInterface {
     const { r, s } = normalizeSecp256r1Signature({ r0: rRaw, s0: sRaw });
     let yParity = getYParity(getMessageHash(authenticatorData, clientDataJson), BigInt(await this.getPubKey()), r, s);
     const signature: WebAuthNSignature = {
-      cross_origin: false,
       client_data_json_outro: Array.from(clientDataJsonOutro),
       flags,
       sign_count: signCount,
@@ -251,11 +249,7 @@ export class WebAuthnSigner implements SignerInterface {
         r: uint256.bnToUint256(r),
         s: uint256.bnToUint256(s),
         y_parity: yParity,
-      },
-      sha256_implementation: new CairoCustomEnum({
-        Cairo0: undefined ,
-        Cairo1: {},
-      }),
+      }
     };
     // "argent::signer::signer_signature::SignerSignature"
     // type wanSignerSignature={

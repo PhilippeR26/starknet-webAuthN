@@ -56,7 +56,7 @@ export default function SendWebAuthNTransaction() {
                     max_price_per_unit: 50,
                 },
                 l2_gas: {
-                    max_amount: 5000,
+                    max_amount: 500,
                     max_price_per_unit: 50,
                 },
                 l1_data_gas: {
@@ -78,7 +78,7 @@ export default function SendWebAuthNTransaction() {
                     max_price_per_unit: 1_500_000_000n
                 }
             }
-            const resp = await webAuthNAccount.execute(transferCall, { skipValidate: true, resourceBounds: resources });
+            const resp = await webAuthNAccount.execute(transferCall, { skipValidate: true,  tip:0n });
             const txR = await webAuthNAccount.waitForTransaction(resp.transaction_hash);
             setTxR(txR);
             setInProgress(false);

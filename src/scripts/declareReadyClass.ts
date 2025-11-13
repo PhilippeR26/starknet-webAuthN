@@ -2,7 +2,7 @@
 // Launch with npx ts-node src/scripts/declareReadyClass.ts
 // Coded with Starknet.js v8.8.0 & starknet-devnet.js v0.6.1
 
-import { RpcProvider, Account, json, shortString } from "starknet";
+import { RpcProvider, Account, json, shortString, CairoBytes31 } from "starknet";
 import { DevnetProvider } from "starknet-devnet";
 import fs from "fs";
 
@@ -15,7 +15,10 @@ async function main() {
   //const provider = new RpcProvider({ nodeUrl: "https://starknet-sepolia.public.blastapi.io/rpc/v0_7" });
 
   // Check that communication with provider is OK
-  console.log("chain Id =", shortString.decodeShortString(await myProvider.getChainId()), ", rpc", await myProvider.getSpecVersion());
+  console.log(
+        "chain Id =", new CairoBytes31(await myProvider.getChainId()).decodeUtf8(),
+        ", rpc", await myProvider.getSpecVersion(),
+        ", SN version =", (await myProvider.getBlock()).starknet_version);
 
   // devnet
   const accData = await l2DevnetProvider.getPredeployedAccounts();
@@ -37,12 +40,12 @@ async function main() {
   //
   console.log("Start...");
   // Ready v0.5.0
-  // const accountAXsierra = json.parse(fs.readFileSync("./compiledContracts/cairo2101/argent_ArgentAccount.contract_class.json").toString("ascii"));
-  // const accountAXcasm = json.parse(fs.readFileSync("./compiledContracts/cairo2101/argent_ArgentAccount.compiled_contract_class.json").toString("ascii"));
+   const accountAXsierra = json.parse(fs.readFileSync("./src/scripts/argent_ArgentAccount050.contract_class.json").toString("ascii"));
+   const accountAXcasm = json.parse(fs.readFileSync("./src/scripts/argent_ArgentAccount050.compiled_contract_class.json").toString("ascii"));
 
   // Ready v0.4.0
-  const accountAXsierra = json.parse(fs.readFileSync("./src/scripts/ArgentXAccount040.sierra.json").toString("ascii"));
-  const accountAXcasm = json.parse(fs.readFileSync("./src/scripts/ArgentXAccount040.casm.json").toString("ascii"));
+  // const accountAXsierra = json.parse(fs.readFileSync("./src/scripts/ArgentXAccount040.sierra.json").toString("ascii"));
+  // const accountAXcasm = json.parse(fs.readFileSync("./src/scripts/ArgentXAccount040.casm.json").toString("ascii"));
 
   // declare
   const respDecl = await account0.declareIfNot({ contract: accountAXsierra, casm: accountAXcasm }, { tip: 0 });
@@ -50,9 +53,9 @@ async function main() {
   if (respDecl.transaction_hash) {
     contractReadyClassHash = respDecl.class_hash;
     // await myProvider.waitForTransaction(respDecl.transaction_hash);
-    console.log("ArgentX v0.4.0 contract declared. Class :", respDecl.class_hash);
+    console.log("ArgentX v0.5.0 contract declared. Class :", respDecl.class_hash);
   } else {
-    contractReadyClassHash = "0x036078334509b514626504edc9fb252328d1a240e4e948bef8d0c08dff45927f"; //v0.4.0
+    contractReadyClassHash = "0xbe187ea57c1dcf8b0b954bf68b7aeeafe071418acbfcab5951125dca69bb97"; //v0.5.0
     console.log("Already declared.")
   };
 
@@ -96,7 +99,7 @@ async function main() {
   // await myProvider.waitForTransaction(AXdAth);
 
 
-  console.log('✅ ArgentX 0.4.0 account declared.');
+  console.log('✅ ArgentX 0.5.0 account declared.');
 }
 main()
   .then(() => process.exit(0))

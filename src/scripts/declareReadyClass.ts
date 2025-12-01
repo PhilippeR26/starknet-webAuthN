@@ -9,7 +9,7 @@ import fs from "fs";
 async function main() {
   const l2DevnetProvider = new DevnetProvider({ timeout: 40_000 });
   // initialize Provider
-  const myProvider = new RpcProvider({ nodeUrl: "http://127.0.0.1:5020/rpc" }); // only starknet-devnet
+  const myProvider = new RpcProvider({ nodeUrl: "http://127.0.0.1:5050/rpc" }); // only starknet-devnet
   // const provider = new RpcProvider({ nodeUrl: "https://json-rpc.starknet-testnet.public.lavanet.xyz" }); // testnet
   //const provider = new RpcProvider({ nodeUrl: "http://192.168.1.11:9545/rpc/v0_7" }); // local pathfinder testnet node
   //const provider = new RpcProvider({ nodeUrl: "https://starknet-sepolia.public.blastapi.io/rpc/v0_7" });

@@ -14,7 +14,8 @@ export default async function Page() {
     return (
             <div>
                 <p className={styles.bgText}>
-                    Test webAuthN with starknet.js v8.8.0
+                    Test webAuthN with starknet.js v8.8.0<br></br>
+                    Ready account v0.5.0
                 </p>
                 <Center>
                     <Image src={webAuthnImg} alt='webAuthN' width={150} />

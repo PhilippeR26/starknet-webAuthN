@@ -3,7 +3,7 @@
  * @param hex Convert a hex string (without 0x) to an Uint8Array
  * @returns 
  */
-export function hex2Uint8Array(hex: string): Uint8Array {
+export function hex2Uint8Array(hex: string): Uint8Array<ArrayBuffer> {
     return new Uint8Array(
         hex
             .match(/.{1,2}/g)!
@@ -18,7 +18,7 @@ export function findInArray(dataToFind: Uint8Array, arrayToIterate: Uint8Array):
     });
 };
 
-export function typedArrayToBuffer(array: Uint8Array): ArrayBuffer {
+export function typedArrayToArrayBuffer(array: Uint8Array): ArrayBuffer {
     console.log("typedArrayToBuffer. input =", array);
     const a = array.buffer.slice(array.byteOffset, array.byteLength + array.byteOffset) as ArrayBuffer;
     console.log("typedArrayToBuffer. output =", a);

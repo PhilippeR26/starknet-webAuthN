@@ -12,9 +12,10 @@ import { WebAuthnSigner } from '../Transaction/webAuthnSigner';
 import { ERC20Abi } from '@/contracts/erc20';
 import { usePersistentContext } from '@/app/persistentContext';
 import { useStore } from 'zustand'
-import { typedArrayToBuffer } from '@/app/utils/encode';
+import { typedArrayToArrayBuffer } from '@/app/utils/encode';
 import { getPrivKey, storeUser } from '@/app/server/managePubKeys';
 import { useForm } from "react-hook-form";
+import { extractPubKey } from "./extractPubKey";
 
 interface FormValues {
   accountName: string
@@ -48,13 +49,13 @@ export default function CreateUser() {
     return BigInt(pubK) & constants.MASK_250
   }
 
-  function defineConstructor(readyWebAuthConstructor: WebAuthNUser): Calldata {
+  function defineConstructor(readyWebAuthUser: WebAuthNUser): Calldata {
     const calldataReady = new CallData(ReadyAccountAbi.abi);
     const ReadyWebAuthn = new CairoCustomEnum({
       Webauthn: {
-        origin: readyWebAuthConstructor.origin,
-        rp_id_hash: readyWebAuthConstructor.rp_id_hash,
-        pubkey: readyWebAuthConstructor.pubKey
+        origin: readyWebAuthUser.origin,
+        rp_id_hash: readyWebAuthUser.rp_id_hash,
+        pubkey: readyWebAuthUser.pubKey
       }
     });
     console.log("constructor ReadyWebAuthn=", ReadyWebAuthn);
@@ -110,14 +111,14 @@ export default function CreateUser() {
       const ethContract = new Contract({ abi: ERC20Abi.abi, address: addrETH, providerOrAccount: account0 });
       const transferCallSTRK = strkContract.populate("transfer", {
         recipient: webAuthnAccount.address,
-        amount: 1n * 10n ** 18n,
+        amount: 10n * 10n ** 18n,
       });
       const transferCallETH = ethContract.populate("transfer", {
         recipient: webAuthnAccount.address,
         amount: 1n * 10n ** 17n,
       });
       console.log("transferCallSTRK&ETH =", transferCallSTRK, transferCallETH);
-      const resp = await account0.execute([transferCallSTRK, transferCallETH],{tip:0n});
+      const resp = await account0.execute([transferCallSTRK, transferCallETH], { tip: 0n });
       console.log("transfer processed! With txH=", resp.transaction_hash);
       const txR = await account0.waitForTransaction(resp.transaction_hash);
       console.log("txR transfer for funding =", txR);
@@ -130,7 +131,7 @@ export default function CreateUser() {
 
   }
 
-  async function createUser(accountName: string) {
+  async function createUser(userName: string) {
     console.log("Create key...");
     const randomBytes = (length: number) =>
       new Uint8Array(Array.from({ length }, () => Math.floor(Math.random() * 40)));
@@ -138,19 +139,18 @@ export default function CreateUser() {
     const id = randomBytes(32);
     //const id: Uint8Array = encode.utf8ToArray("1");
     const challenge: Uint8Array = randomBytes(32);
-    const userName = accountName;
-    const credential = (await navigator.credentials.create({
+    const attestation = (await navigator.credentials.create({
       publicKey: {
         rp: {
           name: "Starknet WebAuthn",
           id: rpId,
         },
         user: {
-          id: typedArrayToBuffer(id),
+          id: typedArrayToArrayBuffer(id),
           name: userName,
           displayName: userName,
         },
-        challenge: typedArrayToBuffer(challenge),
+        challenge: typedArrayToArrayBuffer(challenge),
         pubKeyCredParams: [
           { type: "public-key", alg: -7 }, // ECDSA with SHA-256
         ],
@@ -158,47 +158,46 @@ export default function CreateUser() {
           authenticatorAttachment: "platform",
           residentKey: "preferred",
           requireResidentKey: false,
-          userVerification: "required",
+          userVerification: "preferred",
         },
         attestation: "none",
         extensions: { credProps: true },
         timeout: 60000,
       }
     })) as PublicKeyCredential;
-    if (!credential) {
-      throw new Error("No credential");
+    if (!attestation) {
+      throw new Error("No attestation");
     }
-    console.log("Credential created:", credential);
-      console.log("credential JSON=",credential.toJSON());
-    const credentialRawId = credential.rawId;
-    const credentialIdText = credential.id;
-    const fullPubKey = (credential.response as AuthenticatorAttestationResponse).getPublicKey();
+    console.log("attestation created:", attestation);
+    console.log("attestation JSON=", attestation.toJSON());
+    const attestationRawId = attestation.rawId;
+    const AttestationIdText = attestation.id;
+    const fullPubKey = (attestation.response as AuthenticatorAttestationResponse).getPublicKey();
     if (fullPubKey === null) {
       throw new Error("No public key in response.");
     }
-    console.log("fullPubKey buffer =", fullPubKey);
-    const fullPubK = encode.addHexPrefix(encode.buf2hex(new Uint8Array(fullPubKey)));
-    console.log("fullPubKey hex =", fullPubK);
-    const pubKeyX = encode.addHexPrefix(encode.buf2hex(new Uint8Array(fullPubKey.slice(-64, -32)))); // first half is X part of the public key. Is a u256.
+    console.log("fullPubKey buffer =", fullPubKey, fullPubKey.byteLength);
+    const pubKeyX = extractPubKey(fullPubKey);
+
     console.log("user pubKX =", pubKeyX);
     setPubKX(pubKeyX);
-    const resStorage = await storeUser({ id: credential.id, userName, pubKey: pubKeyX });
+    const resStorage = await storeUser({ id: attestation.id, userName, pubKey: pubKeyX });
     console.log("storage of user Data =", resStorage);
-    console.log("response :", { userName, rpId, origin, credentialRawId, pubKey: pubKeyX });
-    const webAuthnSigner: WebAuthNUser = {
+    console.log("response :", { userName, rpId, origin, credentialRawId: attestationRawId, pubKey: pubKeyX });
+    const webAuthnAttestation: WebAuthNUser = {
       userName: userName,
       originText: origin,
       origin: CallData.compile(origin.split("").map(shortString.encodeShortString)),
       rpId,
       rp_id_hash: encode.addHexPrefix(encode.buf2hex(sha256(new TextEncoder().encode(rpId)))),
-      credentialId: new Uint8Array(credentialRawId),
-      credentialIdText,
+      credentialId: new Uint8Array(attestationRawId),
+      credentialIdText: AttestationIdText,
       pubKey: pubKeyX,
     };
-    console.log({ webAuthnSigner });
+    console.log({ webAuthnSigner: webAuthnAttestation });
     setDeployInProgress(true);
-    await deployAccount(webAuthnSigner);
-    setUserAttestation(webAuthnSigner);
+    await deployAccount(webAuthnAttestation);
+    setUserAttestation(webAuthnAttestation);
     setDeployInProgress(false);
 
   }
@@ -219,7 +218,7 @@ export default function CreateUser() {
         throw new Error("No credential");
       }
       console.log("Credential created:", credential);
-      console.log("credential JSON=",credential.toJSON());
+      console.log("credential JSON=", credential.toJSON());
       const credentialRawId = credential.rawId;
       const credentialIdText = credential.id;
       const { pubKey, userName } = await getPrivKey(credential.id);
@@ -236,12 +235,14 @@ export default function CreateUser() {
         rpId,
         rp_id_hash: encode.addHexPrefix(encode.buf2hex(sha256(new TextEncoder().encode(rpId)))),
         credentialId: new Uint8Array(credentialRawId),
-        credentialIdText, 
+        credentialIdText,
         pubKey: pubKey,
       };
       setUserAttestation(webAuthnSigner);
       console.log({ webAuthnSigner });
+      setDeployInProgress(true);
       await deployAccount(webAuthnSigner);
+      setDeployInProgress(false);
     } catch (err) {
       console.log(err);
       throw new Error("Error while retrieving credential", { cause: err });

@@ -2,32 +2,33 @@
 
 import { Button, Center, Field, Group, Input, Spinner, VStack } from "@chakra-ui/react";
 import { encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract, config } from 'starknet';
-import { devnetAddress, devnetPrivK, devnetProvider, ReadyAccountClassHash, rpId, addrSTRK, addrETH } from '@/app/utils/constants';
+import { devnetAccountAddress, devnetAccountPrivK, devnetProvider, ReadyAccountClassHash, rpId, addrSTRK, addrETH } from '@/app/utils/constants';
 import { useEffect, useState } from 'react';
 import type { WebAuthNUser } from '@/app/type/types';
 import { ReadyAccountAbi } from '@/contracts/ReadyAbi';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { useGlobalContext } from '@/app/globalContext';
-import { WebAuthnSigner } from '../Transaction/webAuthnSigner';
+import { WebAuthnSigner } from '../Transaction/WebAuthnSigner';
 import { ERC20Abi } from '@/contracts/erc20';
 import { usePersistentContext } from '@/app/persistentContext';
 import { useStore } from 'zustand'
-import { typedArrayToArrayBuffer } from '@/app/utils/encode';
-import { getPrivKey, storeUser } from '@/app/server/managePubKeys';
+import { randomBytes, uint8ArrayToArrayBuffer } from '@/app/utils/encode';
+import { getPubK, storePubK } from '@/app/server/managePubKeys';
 import { useForm } from "react-hook-form";
 import { extractPubKey } from "./extractPubKey";
+import { calculateSalt } from "../Transaction/WebAuthnUtils";
 
 interface FormValues {
   accountName: string
 }
-export default function CreateUser() {
+export default function ManageUser() {
   const [pubKX, setPubKX] = useState<string>("");
   const [accountName, setAccountName] = useState<string>("account");
   const [deployInProgress, setDeployInProgress] = useState<boolean>(false);
   const { userAttestation, setUserAttestation } = useStore(usePersistentContext, (state) => state);
 
   config.set("legacyMode", true);
-  const account0 = new Account({ provider: devnetProvider, address: devnetAddress, signer: devnetPrivK });
+  const account0 = new Account({ provider: devnetProvider, address: devnetAccountAddress, signer: devnetAccountPrivK });
   const { webAuthNAccount, setWebAuthNAccount } = useGlobalContext((state) => state);
 
   const {
@@ -36,21 +37,23 @@ export default function CreateUser() {
     formState: { errors, isSubmitting, isValid }
   } = useForm<FormValues>();
 
-  // Create button
+  // Create Account button
   async function onCreateAccount(values: FormValues) {
     console.log("submitted form.");
     setAccountName(values.accountName);
     await createUser(values.accountName);
   }
 
-
-  function calculateSalt(pubK: BigNumberish): bigint {
-    // return 12n;
-    return BigInt(pubK) & constants.MASK_250
+  // Unselect Account button
+  async function unloadAccount() {
+    console.log("UnloadAccount...");
+    setUserAttestation(undefined);
+    setWebAuthNAccount(undefined);
   }
 
+
   function defineConstructor(readyWebAuthUser: WebAuthNUser): Calldata {
-    const calldataReady = new CallData(ReadyAccountAbi.abi);
+    const callDataReady = new CallData(ReadyAccountAbi.abi);
     const ReadyWebAuthn = new CairoCustomEnum({
       Webauthn: {
         origin: readyWebAuthUser.origin,
@@ -60,7 +63,7 @@ export default function CreateUser() {
     });
     console.log("constructor ReadyWebAuthn=", ReadyWebAuthn);
     const ReadyGuardian = new CairoOption(CairoOptionVariant.None);
-    const constructorReadyCallData = calldataReady.compile("constructor", {
+    const constructorReadyCallData = callDataReady.compile("constructor", {
       owner: ReadyWebAuthn,
       guardian: ReadyGuardian
     });
@@ -68,7 +71,7 @@ export default function CreateUser() {
     return constructorReadyCallData;
   }
 
-  function calculateAddress(ReadySigner: WebAuthNUser): string {
+  function calculateAccountAddress(ReadySigner: WebAuthNUser): string {
     const constructorReadyCallData = defineConstructor(ReadySigner);
     const salt = calculateSalt(ReadySigner.pubKey);
     console.log("salt=", salt);
@@ -80,7 +83,7 @@ export default function CreateUser() {
   }
 
   async function deployAccount(webAuthnAttestation: WebAuthNUser) {
-    const newAddress = calculateAddress(webAuthnAttestation);
+    const newAddress = calculateAccountAddress(webAuthnAttestation);
     console.log({ newAddress });
     try {
       await devnetProvider.getClassAt(newAddress);
@@ -111,11 +114,11 @@ export default function CreateUser() {
       const ethContract = new Contract({ abi: ERC20Abi.abi, address: addrETH, providerOrAccount: account0 });
       const transferCallSTRK = strkContract.populate("transfer", {
         recipient: webAuthnAccount.address,
-        amount: 10n * 10n ** 18n,
+        amount: 10n * 10n ** 18n, // 10 STRK
       });
       const transferCallETH = ethContract.populate("transfer", {
         recipient: webAuthnAccount.address,
-        amount: 1n * 10n ** 17n,
+        amount: 1n * 10n ** 17n, // 0.1 ETH
       });
       console.log("transferCallSTRK&ETH =", transferCallSTRK, transferCallETH);
       const resp = await account0.execute([transferCallSTRK, transferCallETH], { tip: 0n });
@@ -133,11 +136,8 @@ export default function CreateUser() {
 
   async function createUser(userName: string) {
     console.log("Create key...");
-    const randomBytes = (length: number) =>
-      new Uint8Array(Array.from({ length }, () => Math.floor(Math.random() * 40)));
     const origin = window.location.origin;
     const id = randomBytes(32);
-    //const id: Uint8Array = encode.utf8ToArray("1");
     const challenge: Uint8Array = randomBytes(32);
     const attestation = (await navigator.credentials.create({
       publicKey: {
@@ -146,11 +146,11 @@ export default function CreateUser() {
           id: rpId,
         },
         user: {
-          id: typedArrayToArrayBuffer(id),
+          id: uint8ArrayToArrayBuffer(id),
           name: userName,
           displayName: userName,
         },
-        challenge: typedArrayToArrayBuffer(challenge),
+        challenge: uint8ArrayToArrayBuffer(challenge),
         pubKeyCredParams: [
           { type: "public-key", alg: -7 }, // ECDSA with SHA-256
         ],
@@ -158,7 +158,7 @@ export default function CreateUser() {
           authenticatorAttachment: "platform",
           residentKey: "preferred",
           requireResidentKey: false,
-          userVerification: "preferred",
+          userVerification: "required",
         },
         attestation: "none",
         extensions: { credProps: true },
@@ -181,10 +181,11 @@ export default function CreateUser() {
 
     console.log("user pubKX =", pubKeyX);
     setPubKX(pubKeyX);
-    const resStorage = await storeUser({ id: attestation.id, userName, pubKey: pubKeyX });
+    // store data in backend
+    const resStorage = await storePubK({ id: attestation.id, userName, pubKey: pubKeyX });
     console.log("storage of user Data =", resStorage);
     console.log("response :", { userName, rpId, origin, credentialRawId: attestationRawId, pubKey: pubKeyX });
-    const webAuthnAttestation: WebAuthNUser = {
+    const webAuthnUser: WebAuthNUser = {
       userName: userName,
       originText: origin,
       origin: CallData.compile(origin.split("").map(shortString.encodeShortString)),
@@ -194,18 +195,18 @@ export default function CreateUser() {
       credentialIdText: AttestationIdText,
       pubKey: pubKeyX,
     };
-    console.log({ webAuthnSigner: webAuthnAttestation });
+    console.log({ webAuthnSigner: webAuthnUser });
     setDeployInProgress(true);
-    await deployAccount(webAuthnAttestation);
-    setUserAttestation(webAuthnAttestation);
+    await deployAccount(webAuthnUser);
+    setUserAttestation(webAuthnUser);
     setDeployInProgress(false);
 
   }
 
   async function readUser() {
     console.log("Read key...");
-    // const origin = window.location.origin;
-    const origin = "http://localhost:5173";
+    const origin = window.location.origin;
+    // const origin = "http://localhost:3000";
     try {
       const credential = (await navigator.credentials.get({
         mediation: "optional",
@@ -221,14 +222,15 @@ export default function CreateUser() {
       console.log("credential JSON=", credential.toJSON());
       const credentialRawId = credential.rawId;
       const credentialIdText = credential.id;
-      const { pubKey, userName } = await getPrivKey(credential.id);
+      // get backend data
+      const { pubKey, userName } = await getPubK(credential.id);
       if (pubKey === null) {
-        throw new Error("No public key in response.");
+        throw new Error("No public key stored in backend.");
       }
       console.log("user pubK =", pubKey);
       setPubKX(pubKey);
       console.log("response :", { userName, rpId, origin, credentialRawId, pubKey: pubKey });
-      const webAuthnSigner: WebAuthNUser = {
+      const webAuthnUser: WebAuthNUser = {
         userName: userName,
         originText: origin,
         origin: CallData.compile(origin.split("").map(shortString.encodeShortString)),
@@ -238,10 +240,10 @@ export default function CreateUser() {
         credentialIdText,
         pubKey: pubKey,
       };
-      setUserAttestation(webAuthnSigner);
-      console.log({ webAuthnSigner });
+      setUserAttestation(webAuthnUser);
+      console.log({ webAuthnSigner: webAuthnUser });
       setDeployInProgress(true);
-      await deployAccount(webAuthnSigner);
+      await deployAccount(webAuthnUser); // if necessary
       setDeployInProgress(false);
     } catch (err) {
       console.log(err);
@@ -249,19 +251,14 @@ export default function CreateUser() {
     }
   }
 
-  async function unloadAccount() {
-    console.log("DeleteAccount...");
-    setUserAttestation(undefined);
-    setWebAuthNAccount(undefined);
-  }
-
   useEffect(() => {
     console.log("CreateUser useEffect ...");
     // ****************************************************
-    // usePersistentContext.persist.clearStorage(); // clear persisted storage
+    // If you need to clear the persistent context, uncomment this line:
+    // usePersistentContext.persist.clearStorage(); 
     // ****************************************************
     if (!!userAttestation && !!userAttestation.pubKey) {
-      const newAddress = calculateAddress(userAttestation);
+      const newAddress = calculateAccountAddress(userAttestation);
       console.log("inputs for address. User:", userAttestation);
       console.log({ newAddress });
       const webAuthnSigner = new WebAuthnSigner(userAttestation);
@@ -316,9 +313,8 @@ export default function CreateUser() {
                     borderColor={isValid ? "gray.400" : "red"}
                     loading={isSubmitting}
                     type="submit"
-                  // onClick={() => createUser()}
                   >
-                    Create user
+                    Create account
                   </Button>
                 </Group>
               </form>
@@ -343,7 +339,7 @@ export default function CreateUser() {
                 borderColor={"gray.400"}
                 onClick={() => readUser()}
               >
-                Select existing user
+                Select existing account
               </Button>
             </Center>
           </>
@@ -353,7 +349,6 @@ export default function CreateUser() {
         <>
           <Center>
             <VStack>
-              {/* Existing account {json.stringify(userAttestation, undefined, 2)} */}
               <Button
                 variant="surface"
                 color={"red"}
@@ -374,7 +369,6 @@ export default function CreateUser() {
           </Center>
         </>
       }
-
     </>
   )
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import CreateUser from "./ConnectWallet/CreateUser";
+import ManageUser from "./ConnectWallet/ManageUser";
 import { useGlobalContext } from "@/app/globalContext";
 import SendWebAuthNTransaction from "./Transaction/SendWebAuthNTransaction";
 
@@ -10,7 +10,7 @@ export function DisplayConnected() {
 
     return (
         <>
-            <CreateUser></CreateUser>
+            <ManageUser></ManageUser>
             {!!webAuthNAccount &&
                 <SendWebAuthNTransaction></SendWebAuthNTransaction>
             }

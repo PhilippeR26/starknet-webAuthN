@@ -23,3 +23,12 @@ export type UserStorage = {
   userName: string,
   pubKey: string,
 }
+
+// "argent::signer::signer_signature::SignerSignature"
+export enum SignerType {
+  Starknet,
+  Secp256k1,
+  Secp256r1,
+  Eip191,
+  Webauthn,
+}

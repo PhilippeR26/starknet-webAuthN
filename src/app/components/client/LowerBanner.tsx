@@ -21,9 +21,8 @@ export default function LowerBanner() {
             color="grey.800"
           >
             Powered by{" "}
-            <Link color="blue.700" href='https://github.com/starknet-io/starknet.js'> Starknet.js v7.6.2<SquareArrowOutUpRight margin-left='2px' /></Link>
-             {" "} and {" "}
-             <Link color="blue.700" href='https://github.com/starknet-io/get-starknet'> get-starknet.js v4.0.7<SquareArrowOutUpRight margin-left='2px' /></Link>.{" "}
+            <Link color="blue.700" href='https://github.com/starknet-io/starknet.js'> Starknet.js v8.8.0<SquareArrowOutUpRight margin-left='2px' /></Link>
+             .{" "}
             <Link color="blue.700" href='https://github.com/PhilippeR26/starknet-webauthn'> Source code<SquareArrowOutUpRight margin-left='2px' /></Link>
             .
           </Box>

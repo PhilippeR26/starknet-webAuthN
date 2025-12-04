@@ -14,7 +14,7 @@ By this way, you can create an account and validate your transactions with
 - or your Google account password  
 and nothing more needed.
 
-Analyze the code to see how to create a such DAPP (start [here](https://github.com/PhilippeR26/Cairo1JS/blob/main/src/app/(site)/page.tsx))  
+Analyze the code to see how to create a such DAPP (start [here](https://github.com/PhilippeR26/Cairo1JS/blob/main/src/app/page.tsx))  
 
 The DAPP is made in the Next.js framework. Coded in Typescript. Using React, Zustand context & Chaka-ui components. The account contract used is the Ready v0.5.0 contract.
 

@@ -2,30 +2,24 @@
 
 > [!IMPORTANT]
 > - Github stars are appreciated!
-> - A version that works in Sepolia Testnet, with a deployed DAPP (available for desktops & mobiles), with a real backend, is available [here](https://github.com/PhilippeR26/starknet-webAuthN/tree/main).
+> - A version that works with Starknet-Devnet and Chrome Desktop , with a local backend, is available [here](https://github.com/PhilippeR26/starknet-webAuthN/tree/devnet0.6.1).
+> - The DAPP is deployed [here]()
 
 ## Presentation
 
-This small demo project demonstrates how to use a Starknet account without any needs of a passphrase or a specific password.  
-It's using the Google Password Manager, in conjunction with a Starknet account that uses a webAuthn signature.
+This small demo DAPP demonstrates how to develop a Starknet account without any needs of a passphrase or a specific password.  
+It's using the Google Password Manager, in conjunction with a Starknet account that uses a webAuthN signature.
 By this way, you can create an account and validate your transactions with
 - your fingerprint
 - or your faceId 
 - or your Google account password  
 and nothing more needed.
 
-Analyze the code to see how to create a such DAPP (start [here](https://github.com/PhilippeR26/Cairo1JS/blob/main/src/app/page.tsx))  
+Analyze the code to see how to create a such DAPP (start [here](https://github.com/PhilippeR26/starknet-webAuthN/blob/main/src/app/page.tsx))  
 
 The DAPP is made in the Next.js framework. Coded in Typescript. Using React, Zustand context & Chaka-ui components. The account contract used is the Ready v0.5.0 contract.
 
 ## Getting Started 🚀
-
-- Launch starknet-devnet v0.6.1 : https://github.com/0xSpaceShard/starknet-devnet with option `--seed 0`
-
-- Declare the Ready v0.5.0 account contract:
-```ts
-npx ts-node src/scripts/declareReadyClass.ts
-```
 
 - Run the development server: 
 ```bash
@@ -41,6 +35,9 @@ Open [http://localhost:3000](http://localhost:3000) with your browser (Chrome) t
 |      Brave      |          ❌          |          ✅           |      ❌      |
 | FireFox, Safari |          ❌          |          ❌           |      ❌      |
 |   Edge, Opera   |          ❌          |          ✅           |      ❌      |
+
+> [!NOTE]
+> Works with All hardwares: Windows, Linux, Android, IOS
 
 ## Usage
 
@@ -61,7 +58,7 @@ Click on create (here in French):
 ![](./Images/create-2.png)
 
 ### 2. Store answer in the backend
-The answer is an object, containing some data that needs to be stored for long term in the DAPP server. In this demo, it's stored in a local file : [src/app/server/pubKeysStorage.json](src/app/server/pubKeysStorage.json)  
+The answer is an object, containing some data that needs to be stored for long term in the DAPP server. In this DAPP, it's stored in a Supabase database by the backend.  
 The stored data :
 ```json
 {
@@ -70,6 +67,14 @@ The stored data :
     "pubKey": "0x92647e4b83f5b2592ca98620b2033a1b6d6a6d5de90d1df9f9ce7b33e50775b0"
 }
 ```
+The database definition :
+![](./Images/Supabase-1.png)
+
+A user has been created, to be able to write in the database:
+![](./Images/Supabase-2.png)
+
+2 policies have been defined:
+![](./Images/Supabase-4.png)
 
 ### 3. Definition of the account address
 We have now all the necessary inputs to calculate the account address.  
@@ -88,13 +93,12 @@ We are using here a Ready v0.5.0 account, that is able to handle WebAuthN signat
 
 The account address is then defined, with the standard Starknet calculation.
 
-### 4. Deployment of the account contract in Devnet
-The account is deployed by a predeployed devnet account, that is sponsoring the deployment.  
-Then 10 STRK are minted in Devnet to fund the new account.
+### 4. Deployment of the account contract in Starknet Sepolia testnet
+The account is deployed by an existing account, that is sponsoring the deployment and an initial funding (1.5 STRK).  
 ![](./Images/created.png)
 
 ### 5. Send a WebAuthN transaction
-Using the result of a request to the Password Manager and the data in the backend, a WebAuthNUser object is created
+Using the result of a request to the Password Manager and the data in the database, a WebAuthNUser object is created
 ```ts
 const webAuthnUser: WebAuthNUser = {
     userName: userName,
@@ -120,7 +124,7 @@ You can now use all the power of the Starknet.js `Account` class, to proceed eas
 > [!IMPORTANT] 
 > You can estimate fees, but you have to take care that the verification of the signature in the account contract is significantly more expensive than a standard Starknet signature.
 > ```ts
-> const SignatureValidationCost = 3n * 10n ** 9n; // fri
+> const SignatureValidationCost = 7n * 10n ** 7n; // fri
 > const estimateFees = await webAuthNAccount.estimateInvokeFee(transferCall, { skipValidate: true });
 > estimateFees.resourceBounds.l2_gas.max_amount += SignatureValidationCost;
 > ```

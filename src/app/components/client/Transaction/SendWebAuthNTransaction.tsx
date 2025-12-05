@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useForm } from "react-hook-form";
 import QRCode from "react-qr-code";
 import { Contract, type GetTransactionReceiptResponse, type RevertedTransactionReceiptResponse, type SuccessfulTransactionReceiptResponse } from 'starknet';
-import { addrSTRK, addrETH, SignatureValidationCost } from '@/app/utils/constants';
+import { addrSTRK, addrETH, SignatureValidationL2Resources } from '@/app/utils/constants';
 import { useGlobalContext } from '@/app/globalContext';
 import { ERC20Abi } from '@/contracts/erc20';
 import { convertAmount } from '@/app/utils/convertAmount';
@@ -47,14 +47,15 @@ export default function SendWebAuthNTransaction() {
                 amount: qty,
             });
             console.log("transfer =", transferCall);
-            const estimateFees = await webAuthNAccount.estimateInvokeFee(transferCall, { skipValidate: true, tip: 0n });
-            estimateFees.resourceBounds.l2_gas.max_amount += SignatureValidationCost;
-            console.log("estimateFees2=", estimateFees);
+            const estimateFees = await webAuthNAccount.estimateInvokeFee(transferCall, { skipValidate: true });
+            const tmpL2amount = estimateFees.resourceBounds.l2_gas.max_amount;
+            console.log("Estimate L2 amount=", tmpL2amount);
+            estimateFees.resourceBounds.l2_gas.max_amount += SignatureValidationL2Resources;
+            console.log("estimateFees2=", estimateFees.resourceBounds.l2_gas.max_amount, "total=", estimateFees.overall_fee, "digits=", estimateFees.overall_fee.toString().length - 1);
 
             const resp = await webAuthNAccount.execute(transferCall, {
                 resourceBounds: estimateFees.resourceBounds,
                 skipValidate: true,
-                tip: 0n
             });
             const txR = await webAuthNAccount.waitForTransaction(resp.transaction_hash);
             setTxR(txR);

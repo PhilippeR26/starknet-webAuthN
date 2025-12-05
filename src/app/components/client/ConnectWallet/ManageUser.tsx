@@ -1,11 +1,10 @@
 "use client";
 
 import { Button, Center, Field, Group, Input, Spinner, VStack } from "@chakra-ui/react";
-import { encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract, config } from 'starknet';
-import { devnetAccountAddress, devnetAccountPrivK, devnetProvider, ReadyAccountClassHash, rpId, addrSTRK, addrETH } from '@/app/utils/constants';
+import { encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract, config, num } from 'starknet';
+import { ReadyAccountClassHash, addrSTRK, addrETH, myFrontendProviders } from '@/app/utils/constants';
 import { useEffect, useState } from 'react';
 import type { WebAuthNUser } from '@/app/type/types';
-import { ReadyAccountAbi } from '@/contracts/ReadyAbi';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { useGlobalContext } from '@/app/globalContext';
 import { WebAuthnSigner } from '../Transaction/WebAuthnSigner';
@@ -16,7 +15,9 @@ import { randomBytes, uint8ArrayToArrayBuffer } from '@/app/utils/encode';
 import { getPubK, storePubK } from '@/app/server/managePubKeys';
 import { useForm } from "react-hook-form";
 import { extractPubKey } from "./extractPubKey";
-import { calculateSalt } from "../Transaction/WebAuthnUtils";
+import { useFrontendProvider } from "../provider/providerContext";
+import { createAccount } from "@/app/server/sponsorAccount";
+import { calculateAccountAddress } from "@/app/utils/account";
 
 interface FormValues {
   accountName: string
@@ -25,11 +26,11 @@ export default function ManageUser() {
   const [pubKX, setPubKX] = useState<string>("");
   const [accountName, setAccountName] = useState<string>("account");
   const [deployInProgress, setDeployInProgress] = useState<boolean>(false);
-  const { userAttestation, setUserAttestation } = useStore(usePersistentContext, (state) => state);
+  const { userAttestation, setUserAttestation } = useStore(usePersistentContext);
+  const { webAuthNAccount, setWebAuthNAccount } = useGlobalContext();
+  const { currentFrontendProviderIndex } = useFrontendProvider();
+  const myFrontendProvider = myFrontendProviders[currentFrontendProviderIndex];
 
-  config.set("legacyMode", true);
-  const account0 = new Account({ provider: devnetProvider, address: devnetAccountAddress, signer: devnetAccountPrivK });
-  const { webAuthNAccount, setWebAuthNAccount } = useGlobalContext((state) => state);
 
   const {
     handleSubmit,
@@ -52,91 +53,27 @@ export default function ManageUser() {
   }
 
 
-  function defineConstructor(readyWebAuthUser: WebAuthNUser): Calldata {
-    const callDataReady = new CallData(ReadyAccountAbi.abi);
-    const ReadyWebAuthn = new CairoCustomEnum({
-      Webauthn: {
-        origin: readyWebAuthUser.origin,
-        rp_id_hash: readyWebAuthUser.rp_id_hash,
-        pubkey: readyWebAuthUser.pubKey
-      }
-    });
-    console.log("constructor ReadyWebAuthn=", ReadyWebAuthn);
-    const ReadyGuardian = new CairoOption(CairoOptionVariant.None);
-    const constructorReadyCallData = callDataReady.compile("constructor", {
-      owner: ReadyWebAuthn,
-      guardian: ReadyGuardian
-    });
-    console.log("constructor =", constructorReadyCallData);
-    return constructorReadyCallData;
-  }
 
-  function calculateAccountAddress(ReadySigner: WebAuthNUser): string {
-    const constructorReadyCallData = defineConstructor(ReadySigner);
-    const salt = calculateSalt(ReadySigner.pubKey);
-    console.log("salt=", salt);
-    console.log("constructor=", constructorReadyCallData);
-    console.log("ReadyAccountClassHash=", ReadyAccountClassHash);
-    const accountReadyAddress = hash.calculateContractAddressFromHash(salt, ReadyAccountClassHash, constructorReadyCallData, 0);
-    console.log('Precalculated account address=', accountReadyAddress);
-    return accountReadyAddress;
-  }
 
   async function deployAccount(webAuthnAttestation: WebAuthNUser) {
-    const newAddress = calculateAccountAddress(webAuthnAttestation);
-    console.log({ newAddress });
     try {
-      await devnetProvider.getClassAt(newAddress);
-      console.warn("Account is already existing.");
-      return;
-    } catch { }
-
-    const myCall: Call = {
-      contractAddress: constants.UDC.ADDRESS,
-      entrypoint: constants.UDC.ENTRYPOINT,
-      calldata: CallData.compile({
-        classHash: ReadyAccountClassHash,
-        salt: calculateSalt(webAuthnAttestation.pubKey),
-        unique: "0",
-        calldata: defineConstructor(webAuthnAttestation),
-      }),
-    };
-    console.log("Deploy of account in progress...\n", myCall);
-    try {
-      const { transaction_hash: txHDepl }: InvokeFunctionResponse = await account0.execute(myCall);
-      console.log("account deployed with txH =", txHDepl);
-      await account0.waitForTransaction(txHDepl);
+      const address = await createAccount(webAuthnAttestation); // from backend
+      const strkContract = new Contract({ abi: ERC20Abi.abi, address: addrSTRK, providerOrAccount: myFrontendProvider });
+      console.log("Balance of new account (", address, ") =\n", await strkContract.balanceOf(address), "STRK\n");
       const webAuthnSigner = new WebAuthnSigner(webAuthnAttestation);
-      const webAuthnAccount = new Account({ provider: devnetProvider, address: newAddress, signer: webAuthnSigner });
-      // fund account
-      console.log("fund new account...");
-      const strkContract = new Contract({ abi: ERC20Abi.abi, address: addrSTRK, providerOrAccount: account0 });
-      const ethContract = new Contract({ abi: ERC20Abi.abi, address: addrETH, providerOrAccount: account0 });
-      const transferCallSTRK = strkContract.populate("transfer", {
-        recipient: webAuthnAccount.address,
-        amount: 10n * 10n ** 18n, // 10 STRK
-      });
-      const transferCallETH = ethContract.populate("transfer", {
-        recipient: webAuthnAccount.address,
-        amount: 1n * 10n ** 17n, // 0.1 ETH
-      });
-      console.log("transferCallSTRK&ETH =", transferCallSTRK, transferCallETH);
-      const resp = await account0.execute([transferCallSTRK, transferCallETH], { tip: 0n });
-      console.log("transfer processed! With txH=", resp.transaction_hash);
-      const txR = await account0.waitForTransaction(resp.transaction_hash);
-      console.log("txR transfer for funding =", txR);
-      console.log("Balance of new account (", webAuthnAccount.address, ") =\n", await strkContract.balanceOf(webAuthnAccount.address), "STRK\n", await ethContract.balanceOf(webAuthnAccount.address), "ETH");
+      const webAuthnAccount = new Account({ provider: myFrontendProvider, address, signer: webAuthnSigner });
       setWebAuthNAccount(webAuthnAccount);
     } catch (err: any) {
-      console.log("Error during account deployment:", err);
+      console.log("Problem during account deployment:", err);
       return;
     }
-
   }
 
   async function createUser(userName: string) {
     console.log("Create key...");
     const origin = window.location.origin;
+    const rpId = window.location.hostname
+    console.log({ rpId });
     const id = randomBytes(32);
     const challenge: Uint8Array = randomBytes(32);
     const attestation = (await navigator.credentials.create({
@@ -206,6 +143,8 @@ export default function ManageUser() {
   async function readUser() {
     console.log("Read key...");
     const origin = window.location.origin;
+    const rpId = window.location.hostname
+    console.log({ rpId });
     // const origin = "http://localhost:3000";
     try {
       const credential = (await navigator.credentials.get({
@@ -262,7 +201,7 @@ export default function ManageUser() {
       console.log("inputs for address. User:", userAttestation);
       console.log({ newAddress });
       const webAuthnSigner = new WebAuthnSigner(userAttestation);
-      const webAuthnAccount = new Account({ provider: devnetProvider, address: newAddress, signer: webAuthnSigner });
+      const webAuthnAccount = new Account({ provider: myFrontendProvider, address: newAddress, signer: webAuthnSigner });
       console.log(webAuthnAccount);
       setWebAuthNAccount(webAuthnAccount);
     }
@@ -362,7 +301,7 @@ export default function ManageUser() {
               </Button>
               <Center> WebAuthN account : </Center>
               <Center> account name = {userAttestation.userName} </Center>
-              <Center>  address = {webAuthNAccount?.address}</Center>
+              <Center>  address = {!!webAuthNAccount && num.toHex64(webAuthNAccount!.address)}</Center>
               <Center>  public key = {userAttestation.pubKey}
               </Center>
             </VStack>

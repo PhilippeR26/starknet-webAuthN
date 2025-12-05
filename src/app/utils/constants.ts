@@ -5,20 +5,19 @@ export const addrETH = "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b8
 export const addrTEST = "0x07394cBe418Daa16e42B87Ba67372d4AB4a5dF0B05C6e554D158458Ce245BC10";
 export const addrLORDtestnet = "0x019c92fa87f4d5e3bE25C3DD6a284f30282a07e87cd782f5Fd387B82c8142017";
 export const addrLORDmainnet = "0x0124aeb495b947201f5faC96fD1138E326AD86195B98df6DEc9009158A533B49";
-export const devnetUrl="http://127.0.0.1:5050";
-export const devnetProvider = new RpcProvider({ nodeUrl: devnetUrl, specVersion: "0.9.0" });
+export const devnetUrl = "http://127.0.0.1:5050";
+export const devnetProvider = new RpcProvider({ nodeUrl: devnetUrl });
 export const myFrontendProviders: RpcProvider[] = [
-    new RpcProvider({ nodeUrl: "https://starknet-mainnet.g.alchemy.com/starknet/version/rpc/v0_9/" + process.env.NEXT_PUBLIC_PROVIDER_URL }), // mainnet
-    new RpcProvider({ nodeUrl: "https://starknet-testnet.public.blastapi.io/rpc/v0_8" }), // goerli deprecated
+    new RpcProvider({ nodeUrl: "https://starknet-mainnet.g.alchemy.com/starknet/version/rpc/v0_10/" + process.env.NEXT_PUBLIC_PROVIDER_URL }), // mainnet
+    new RpcProvider({ nodeUrl: "deprecated" }), // goerli deprecated
     // new RpcProvider({ nodeUrl: "https://free-rpc.nethermind.io/sepolia-juno/v0_7"}),
-    new RpcProvider({ nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_9/" + process.env.NEXT_PUBLIC_PROVIDER_URL }), // Sepolia testnet
+    new RpcProvider({ nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/" + process.env.NEXT_PUBLIC_PROVIDER_URL }), // Sepolia testnet
     devnetProvider, // Sepolia testnet
 ];
 // export const ReadyAccountClassHash = "0x1a736d6ed154502257f02b1ccdf4d9d1089f80811cd6acad48e6b6a9d1f2003"; // v0.3.0
 // export const ReadyAccountClassHash = "0x036078334509b514626504edc9fb252328d1a240e4e948bef8d0c08dff45927f"; // v0.4.0
 export const ReadyAccountClassHash = "0xbe187ea57c1dcf8b0b954bf68b7aeeafe071418acbfcab5951125dca69bb97"; // v0.5.0
 
+// export const rpId = "starknet-web-auth-n.vercel.app"; // name of site, without "http://", without any port
 export const rpId = "localhost"; // name of site, without "http://", without any port
-export const devnetAccountAddress = "0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691";
-export const devnetAccountPrivK = "0x0000000000000000000000000000000071d7bb07b9a64f6f78ac4c816aff4da9";
-export const SignatureValidationCost = 3n * 10n ** 9n // fri
+export const SignatureValidationL2Resources = 7n * 10n ** 7n // fri

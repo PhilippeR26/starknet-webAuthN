@@ -29,7 +29,7 @@ import {
   normalizeSecp256r1Signature,
   parseASN1Signature,
   signerTypeToCustomEnum
-} from './WebAuthnUtils';
+} from '../../../utils/WebAuthnUtils';
 
 
 /**

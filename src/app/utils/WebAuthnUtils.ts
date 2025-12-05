@@ -69,7 +69,7 @@ export function extractClientDataJsonOutro(clientDataJson: Uint8Array): Uint8Arr
     return new Uint8Array();
   }
   console.log("extract Json-i=", i);
-    const outro = clientDataJson.slice(i + 1);
+  const outro = clientDataJson.slice(i + 1);
   console.log("outro=", new TextDecoder().decode(outro));
   // If outro is just '}', treat as empty per spec
   if (outro.length === 1 && outro[0] === 0x7d /* '}' */) {
@@ -175,6 +175,6 @@ export function signerTypeToCustomEnum(signerType: SignerType, value: any): Cair
  * @returns 
  */
 export function calculateSalt(pubK: BigNumberish): bigint {
-    return BigInt(pubK) & constants.MASK_250
-  }
+  return BigInt(pubK) & constants.MASK_250
+}
 

@@ -1,30 +1,47 @@
 "use server";
 
+import { createClient } from '@supabase/supabase-js'
 import type { UserStorage } from "@/app/type/types";
-import { json } from "starknet";
-import fs from "fs";
 
 
 export async function storePubK(data: UserStorage): Promise<boolean> {
     console.log("store User...");
-    try {
-        const stored = json.parse(fs.readFileSync("./src/app/server/pubKeysStorage.json").toString("ascii")) as UserStorage[];
-        stored.push(data);
-        fs.writeFileSync("./src/app/server/pubKeysStorage.json", json.stringify(stored, undefined, 2));
-        return true;
-    } catch (error) {
+    console.log("DATABASE_URL=", process.env.DATABASE_URL);
+    console.log("SUPABASE_KEY=", process.env.SUPABASE_KEY);
+
+    // connect to database
+    const supabase = createClient(process.env.DATABASE_URL ?? "", process.env.SUPABASE_KEY ?? "", {});
+    // connect an authorized database user
+    const { data: dataUser } = await supabase.auth.signInWithPassword({
+        email: process.env.SUPABASE_USER_EMAIL??"",
+        password: process.env.SUPABASE_USER_PWD??"",
+    });
+    console.log("dataUser=", dataUser.user);
+    // store data
+    const { error } = await supabase
+        .from('webauthnUsers')
+        .insert(data);
+    if (error) {
         console.error("Error storing user:", error);
         return false;
     }
+    return true;
 }
 
 export async function getPubK(id: string): Promise<UserStorage> {
     console.log("get userName=", id);
-    const stored = json.parse(fs.readFileSync("./src/app/server/pubKeysStorage.json").toString("ascii")) as UserStorage[];
-    const filtered = stored.find((user) => user.id === id);
-    if (filtered === undefined) {
+    console.log("DATABASE_URL=", process.env.DATABASE_URL);
+    console.log("SUPABASE_KEY=", process.env.SUPABASE_KEY);
+    // connect to database
+    const supabase = createClient(process.env.DATABASE_URL ?? "", process.env.SUPABASE_KEY ?? "");
+    // read database
+    const { data: filtered, error } = await supabase.from("webauthnUsers").select().eq("id", id);
+    if (filtered == null || filtered.length == 0) {
         throw new Error("User not found in server!");
     }
-    console.log("getPubK...", filtered);
-    return filtered;
+    if (error) {
+        throw new Error("Error reading user:", error);
+    }
+    console.log("getPubK...", filtered[0]);
+    return filtered[0] as Promise<UserStorage>;
 }

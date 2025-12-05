@@ -7,7 +7,7 @@ import SendWebAuthNTransaction from "./Transaction/SendWebAuthNTransaction";
 
 export function DisplayConnected() {
     const { webAuthNAccount } = useGlobalContext();
-
+    
     return (
         <>
             <ManageUser></ManageUser>

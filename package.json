@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "next build --webpack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -16,27 +16,24 @@
     "@peculiar/asn1-ecc": "^2.6.0",
     "@peculiar/asn1-schema": "^2.6.0",
     "@starknet-io/types-js": "^0.10.0",
-    "fs": "^0.0.1-security",
-    "js-sha256": "^0.11.1",
+    "@supabase/supabase-js": "^2.86.2",
+    "dotenv": "^17.2.3",
     "lucide-react": "^0.555.0",
-    "next": "^16.0.6",
+    "next": "^16.0.7",
     "next-themes": "^0.4.6",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "react-hook-form": "^7.67.0",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "react-hook-form": "^7.68.0",
     "react-icons": "^5.5.0",
     "react-qr-code": "^2.0.18",
     "sharp": "^0.34.5",
-    "starknet": "^8.9.1",
+    "starknet": "9.0.0-beta.3",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
     "@types/react": "19.2.7",
-    "@types/react-dom": "19.2.3",
-    "baseline-browser-mapping": "^2.8.32",
     "simple-zustand-devtools": "^1.1.0",
-    "starknet-devnet": "^0.6.0",
     "typescript": "^5.9.3"
   }
 }

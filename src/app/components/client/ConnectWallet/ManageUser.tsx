@@ -70,12 +70,40 @@ export default function ManageUser() {
   }
 
   async function createUser(userName: string) {
-    console.log("Create key...");
+    console.log("Create key...", userName);
     const origin = window.location.origin;
     const rpId = window.location.hostname
     console.log({ rpId });
     const id = randomBytes(32);
     const challenge: Uint8Array = randomBytes(32);
+    console.log("credential.create=",
+      {
+      publicKey: {
+        rp: {
+          name: "Starknet WebAuthn",
+          id: rpId,
+        },
+        user: {
+          id: uint8ArrayToArrayBuffer(id),
+          name: userName,
+          displayName: userName,
+        },
+        challenge: uint8ArrayToArrayBuffer(challenge),
+        pubKeyCredParams: [
+          { type: "public-key", alg: -7 }, // ECDSA with SHA-256
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          residentKey: "preferred",
+          requireResidentKey: false,
+          userVerification: "required",
+        },
+        attestation: "none",
+        extensions: { credProps: true },
+        timeout: 60000,
+      }
+    }
+    );
     const attestation = (await navigator.credentials.create({
       publicKey: {
         rp: {

@@ -24,7 +24,7 @@ export async function createAccount(webAuthnAttestation: WebAuthNUser): Promise<
         return newAddress;
     } catch { }
 
-    const myCall: Call = {
+    const deployAccount: Call = {
         contractAddress: constants.UDC.ADDRESS,
         entrypoint: constants.UDC.ENTRYPOINT,
         calldata: CallData.compile({
@@ -34,15 +34,15 @@ export async function createAccount(webAuthnAttestation: WebAuthNUser): Promise<
             calldata: defineConstructor(webAuthnAttestation),
         }),
     };
-    console.log("Deploy of account in progress...\n", myCall);
+    console.log("Deploy of account in progress...\n", deployAccount);
     console.log("fund new account...");
     const strkContract = new Contract({ abi: ERC20Abi.abi, address: addrSTRK, providerOrAccount: account0 });
-    const transferCallSTRK = strkContract.populate("transfer", {
+    const transferCallSTRK: Call = strkContract.populate("transfer", {
         recipient: newAddress,
         amount: 15n * 10n ** 17n, // 1.5 STRK
     });
     console.log("transferCallSTRK =", transferCallSTRK);
-    const { transaction_hash: txHDepl }: InvokeFunctionResponse = await account0.execute([myCall, transferCallSTRK]);
+    const { transaction_hash: txHDepl }: InvokeFunctionResponse = await account0.execute([deployAccount, transferCallSTRK]);
     console.log("account deployed with txH =", txHDepl);
     await account0.waitForTransaction(txHDepl);
     return newAddress;

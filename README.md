@@ -142,11 +142,11 @@ const resp = await webAuthNAccount.execute(transferCall, {
     skipValidate: true,
 });
 ```
-The Password Manager is asking to approve the transaction:
+The Password Manager is asking to approve the transaction (password or bio):
 
 ![](./Images/sign.png)
 
-Then the transaction is processed in Starknet-Devnet:
+Then the transaction is processed in Starknet-Sepolia Testnet:
 
 ![](./Images/success.png)
 

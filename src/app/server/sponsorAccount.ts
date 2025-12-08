@@ -5,7 +5,6 @@ import { addrSTRK, myFrontendProviders, ReadyAccountClassHash } from "../utils/c
 import type { WebAuthNUser } from "../type/types";
 import { calculateAccountAddress, defineConstructor } from "../utils/account";
 import { calculateSalt } from "../utils/WebAuthnUtils";
-import { WebAuthnSigner } from "../components/client/Transaction/WebAuthnSigner";
 import { ERC20Abi } from "@/contracts/erc20";
 
 
@@ -36,23 +35,16 @@ export async function createAccount(webAuthnAttestation: WebAuthNUser): Promise<
         }),
     };
     console.log("Deploy of account in progress...\n", myCall);
-    const { transaction_hash: txHDepl }: InvokeFunctionResponse = await account0.execute(myCall);
-    console.log("account deployed with txH =", txHDepl);
-    await account0.waitForTransaction(txHDepl);
-    const webAuthnSigner = new WebAuthnSigner(webAuthnAttestation);
-    const webAuthnAccount = new Account({ provider: myProvider, address: newAddress, signer: webAuthnSigner });
-    // fund account
     console.log("fund new account...");
     const strkContract = new Contract({ abi: ERC20Abi.abi, address: addrSTRK, providerOrAccount: account0 });
     const transferCallSTRK = strkContract.populate("transfer", {
-        recipient: webAuthnAccount.address,
+        recipient: newAddress,
         amount: 15n * 10n ** 17n, // 1.5 STRK
     });
     console.log("transferCallSTRK =", transferCallSTRK);
-    const resp = await account0.execute(transferCallSTRK);
-    console.log("transfer processed! With txH=", resp.transaction_hash);
-    const txR = await account0.waitForTransaction(resp.transaction_hash);
-    console.log("txR transfer for funding =", txR);
+    const { transaction_hash: txHDepl }: InvokeFunctionResponse = await account0.execute([myCall, transferCallSTRK]);
+    console.log("account deployed with txH =", txHDepl);
+    await account0.waitForTransaction(txHDepl);
     return newAddress;
 }
 

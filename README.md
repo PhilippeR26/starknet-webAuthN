@@ -15,7 +15,7 @@ and nothing more needed.
 > [!IMPORTANT]
 > - Github stars are appreciated!
 > - A version that works with Starknet-Devnet and Chrome Desktop , with a local backend, is available [here](https://github.com/PhilippeR26/starknet-webAuthN/tree/devnet0.6.1).
-> - The DAPP is deployed [here]()
+> - The DAPP is deployed [here](https://starknet-web-auth-n.vercel.app/)
 
 
 Analyze the code to see how to create a such DAPP (start [here](https://github.com/PhilippeR26/starknet-webAuthN/blob/main/src/app/page.tsx))  

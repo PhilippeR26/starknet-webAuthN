@@ -1,9 +1,6 @@
 # Starknet-WebAuthN
 
-> [!IMPORTANT]
-> - Github stars are appreciated!
-> - A version that works with Starknet-Devnet and Chrome Desktop , with a local backend, is available [here](https://github.com/PhilippeR26/starknet-webAuthN/tree/devnet0.6.1).
-> - The DAPP is deployed [here]()
+![](./Images/androidTx.png)
 
 ## Presentation
 
@@ -14,6 +11,12 @@ By this way, you can create an account and validate your transactions with
 - or your faceId 
 - or your Google account password  
 and nothing more needed.
+
+> [!IMPORTANT]
+> - Github stars are appreciated!
+> - A version that works with Starknet-Devnet and Chrome Desktop , with a local backend, is available [here](https://github.com/PhilippeR26/starknet-webAuthN/tree/devnet0.6.1).
+> - The DAPP is deployed [here]()
+
 
 Analyze the code to see how to create a such DAPP (start [here](https://github.com/PhilippeR26/starknet-webAuthN/blob/main/src/app/page.tsx))  
 

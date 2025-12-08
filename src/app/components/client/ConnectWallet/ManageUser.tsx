@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Center, Field, Group, Input, Spinner, VStack } from "@chakra-ui/react";
+import { Button, Center, Field, Group, Input, Spinner, VStack, Text } from "@chakra-ui/react";
 import { encode, CallData, CairoOption, CairoOptionVariant, hash, shortString, type BigNumberish, CairoCustomEnum, constants, type Call, type Calldata, type InvokeFunctionResponse, Account, Contract, config, num } from 'starknet';
 import { ReadyAccountClassHash, addrSTRK, addrETH, myFrontendProviders } from '@/app/utils/constants';
 import { useEffect, useState } from 'react';
@@ -18,6 +18,9 @@ import { extractPubKey } from "./extractPubKey";
 import { useFrontendProvider } from "../provider/providerContext";
 import { createAccount } from "@/app/server/sponsorAccount";
 import { calculateAccountAddress } from "@/app/utils/account";
+import { Copy } from "lucide-react";
+import { Toaster, toaster } from "@/components/ui/toaster";
+import { shortHex64 } from "@/app/utils/format";
 
 interface FormValues {
   accountName: string
@@ -52,8 +55,33 @@ export default function ManageUser() {
     setWebAuthNAccount(undefined);
   }
 
+  async function handleCopyAddress() {
+    try {
+      await navigator.clipboard.writeText(num.toHex64(webAuthNAccount!.address));
+      toaster.create({
+        description: "Address copied to clipboard",
+        type: "success",
+        duration: 5000,
+      })
+      console.log('Address copied to clipboard');
+    } catch (err) {
+      console.error('Failed to copy address: ', err);
+    }
+  }
 
-
+  async function handleCopyPubK() {
+    try {
+      await navigator.clipboard.writeText(userAttestation!.pubKey.toString());
+      toaster.create({
+        description: "Public key copied to clipboard",
+        type: "success",
+        duration: 5000,
+      })
+      console.log('pubK copied to clipboard');
+    } catch (err) {
+      console.error('Failed to copy pubK: ', err);
+    }
+  }
 
   async function deployAccount(webAuthnAttestation: WebAuthNUser) {
     try {
@@ -78,31 +106,31 @@ export default function ManageUser() {
     const challenge: Uint8Array = randomBytes(32);
     console.log("credential.create=",
       {
-      publicKey: {
-        rp: {
-          name: "Starknet WebAuthn",
-          id: rpId,
-        },
-        user: {
-          id: uint8ArrayToArrayBuffer(id),
-          name: userName,
-          displayName: userName,
-        },
-        challenge: uint8ArrayToArrayBuffer(challenge),
-        pubKeyCredParams: [
-          { type: "public-key", alg: -7 }, // ECDSA with SHA-256
-        ],
-        authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          residentKey: "preferred",
-          requireResidentKey: false,
-          userVerification: "required",
-        },
-        attestation: "none",
-        extensions: { credProps: true },
-        timeout: 60000,
+        publicKey: {
+          rp: {
+            name: "Starknet WebAuthn",
+            id: rpId,
+          },
+          user: {
+            id: uint8ArrayToArrayBuffer(id),
+            name: userName,
+            displayName: userName,
+          },
+          challenge: uint8ArrayToArrayBuffer(challenge),
+          pubKeyCredParams: [
+            { type: "public-key", alg: -7 }, // ECDSA with SHA-256
+          ],
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            residentKey: "preferred",
+            requireResidentKey: false,
+            userVerification: "required",
+          },
+          attestation: "none",
+          extensions: { credProps: true },
+          timeout: 60000,
+        }
       }
-    }
     );
     const attestation = (await navigator.credentials.create({
       publicKey: {
@@ -315,6 +343,7 @@ export default function ManageUser() {
         :
         <>
           <Center>
+            <Toaster></Toaster>
             <VStack>
               <Button
                 variant="surface"
@@ -329,8 +358,21 @@ export default function ManageUser() {
               </Button>
               <Center> WebAuthN account : </Center>
               <Center> account name = {userAttestation.userName} </Center>
-              <Center>  address = {!!webAuthNAccount && num.toHex64(webAuthNAccount!.address)}</Center>
-              <Center>  public key = {userAttestation.pubKey}
+              <Center>  address = {!!webAuthNAccount && shortHex64(webAuthNAccount!.address)}
+                <Copy
+                  color="steelblue"
+                  style={{ marginLeft: "5px" }}
+                  size={14}
+                  onClick={handleCopyAddress}
+                />
+              </Center>
+              <Center>  public key = {shortHex64(userAttestation.pubKey)}
+                <Copy
+                  color="steelblue"
+                  style={{ marginLeft: "5px" }}
+                  size={14}
+                  onClick={handleCopyPubK}
+                />
               </Center>
             </VStack>
           </Center>

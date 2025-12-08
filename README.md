@@ -27,7 +27,7 @@ npm i
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser (Chrome) to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser (Linux/Windows Chrome) to see the result.
 
 |     Browser     | Creation of account | Selection of account | Transaction |
 | :-------------: | :-----------------: | :------------------: | :---------: |
@@ -37,7 +37,11 @@ Open [http://localhost:3000](http://localhost:3000) with your browser (Chrome) t
 |   Edge, Opera   |          ❌          |          ✅           |      ❌      |
 
 > [!NOTE]
-> Works with All hardwares: Windows, Linux, Android, IOS
+> Works with these hardwares: Windows, Linux, Android
+
+> [!WARNING]
+> This DAPP is not working in Iphone/Chrome.  
+> If somebody knows why it fail, I am interested...
 
 ## Usage
 

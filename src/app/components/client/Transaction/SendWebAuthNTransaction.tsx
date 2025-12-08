@@ -105,10 +105,11 @@ export default function SendWebAuthNTransaction() {
                     <VStack w="500px">
                         <Field.Root invalid={errors.targetAddress as any}>
                             <Field.Label htmlFor="encoded" textStyle="xs"> Destination address (0x 64 characters) :</Field.Label>
-                            <Input w="100%" minH={50} maxH={500}
+                            <Input w="90%" minH={50} maxH={500}
                                 variant={'subtle'}
                                 bg="gray.400"
                                 defaultValue={destAddress}
+                                fontSize={12}
                                 id="encoded"
                                 {...register("targetAddress", {
                                     required: "This is required. Ex: 0x0123..a2c", pattern: /^(0x)?[0-9a-fA-F]{64}$/

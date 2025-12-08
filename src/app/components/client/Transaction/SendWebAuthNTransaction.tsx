@@ -102,7 +102,7 @@ export default function SendWebAuthNTransaction() {
             </Center>
             <form onSubmit={handleSubmit(sendTx)}>
                 <Center>
-                    <VStack w="500px">
+                    <VStack w="500px"px={"3%"}>
                         <Field.Root invalid={errors.targetAddress as any}>
                             <Field.Label htmlFor="encoded" textStyle="xs"> Destination address (0x 64 characters) :</Field.Label>
                             <Input w="90%" minH={50} maxH={500}

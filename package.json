@@ -16,10 +16,10 @@
     "@peculiar/asn1-ecc": "^2.6.0",
     "@peculiar/asn1-schema": "^2.6.0",
     "@starknet-io/types-js": "^0.10.0",
-    "@supabase/supabase-js": "^2.86.2",
+    "@supabase/supabase-js": "^2.87.0",
     "dotenv": "^17.2.3",
-    "lucide-react": "^0.555.0",
-    "next": "^16.0.7",
+    "lucide-react": "^0.556.0",
+    "next": "^16.0.8",
     "next-themes": "^0.4.6",
     "react": "19.2.1",
     "react-dom": "19.2.1",
@@ -27,11 +27,11 @@
     "react-icons": "^5.5.0",
     "react-qr-code": "^2.0.18",
     "sharp": "^0.34.5",
-    "starknet": "9.0.0-beta.3",
+    "starknet": "9.1.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
-    "@types/node": "24.10.1",
+    "@types/node": "24.10.2",
     "@types/react": "19.2.7",
     "simple-zustand-devtools": "^1.1.0",
     "typescript": "^5.9.3"

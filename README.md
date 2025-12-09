@@ -24,13 +24,15 @@ The DAPP is made in the Next.js framework. Coded in Typescript. Using React, Zus
 
 ## Getting Started 🚀
 
+- Define your own Supabase database
+- define a .env.local file
 - Run the development server: 
 ```bash
 npm i
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser (Linux/Windows Chrome) to see the result.
+- Open [http://localhost:3000](http://localhost:3000) with your browser (Linux/Windows Chrome) to see the result.
 
 |     Browser     | Creation of account | Selection of account | Transaction |
 | :-------------: | :-----------------: | :------------------: | :---------: |

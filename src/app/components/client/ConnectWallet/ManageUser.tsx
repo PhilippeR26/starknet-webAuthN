@@ -104,35 +104,7 @@ export default function ManageUser() {
     console.log({ rpId });
     const id = randomBytes(32);
     const challenge: Uint8Array = randomBytes(32);
-    console.log("credential.create=",
-      {
-        publicKey: {
-          rp: {
-            name: "Starknet WebAuthn",
-            id: rpId,
-          },
-          user: {
-            id: uint8ArrayToArrayBuffer(id),
-            name: userName,
-            displayName: userName,
-          },
-          challenge: uint8ArrayToArrayBuffer(challenge),
-          pubKeyCredParams: [
-            { type: "public-key", alg: -7 }, // ECDSA with SHA-256
-          ],
-          authenticatorSelection: {
-            authenticatorAttachment: "platform",
-            residentKey: "preferred",
-            requireResidentKey: false,
-            userVerification: "required",
-          },
-          attestation: "none",
-          extensions: { credProps: true },
-          timeout: 60000,
-        }
-      }
-    );
-    const attestation = (await navigator.credentials.create({
+    const creation: CredentialCreationOptions = {
       publicKey: {
         rp: {
           name: "Starknet WebAuthn",
@@ -145,6 +117,7 @@ export default function ManageUser() {
         },
         challenge: uint8ArrayToArrayBuffer(challenge),
         pubKeyCredParams: [
+          // RS256 is normally added, but here it's voluntarily removed.
           { type: "public-key", alg: -7 }, // ECDSA with SHA-256
         ],
         authenticatorSelection: {
@@ -157,7 +130,9 @@ export default function ManageUser() {
         extensions: { credProps: true },
         timeout: 60000,
       }
-    })) as PublicKeyCredential;
+    }
+    console.log("credential.create=", creation);
+    const attestation = (await navigator.credentials.create(creation)) as PublicKeyCredential;
     if (!attestation) {
       throw new Error("No attestation");
     }
@@ -199,24 +174,25 @@ export default function ManageUser() {
   async function readUser() {
     console.log("Read key...");
     const origin = window.location.origin;
+    // const origin = "http://localhost:3000";
     const rpId = window.location.hostname
     console.log({ rpId });
-    // const origin = "http://localhost:3000";
     try {
-      const credential = (await navigator.credentials.get({
+      const request: CredentialRequestOptions = {
         mediation: "optional",
         publicKey: {
           challenge: new Uint8Array(32),
           userVerification: "preferred",
         },
-      })) as PublicKeyCredential;
+      }
+      const credential = (await navigator.credentials.get(request)) as Credential;
       if (!credential) {
         throw new Error("No credential");
       }
-      console.log("Credential created:", credential);
-      console.log("credential JSON=", credential.toJSON());
-      const credentialRawId = credential.rawId;
-      const credentialIdText = credential.id;
+      console.log("Credential created:", credential.id );
+      // console.log("credential JSON=", credential.toJSON());
+      const credentialIdText:string = credential.id;
+      const credentialRawId:Uint8Array = new TextEncoder().encode(credential.id);
       // get backend data
       const { pubKey, userName } = await getPubK(credential.id);
       if (pubKey === null) {

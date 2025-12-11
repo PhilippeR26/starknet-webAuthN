@@ -37,7 +37,7 @@ export async function getTransactionSignature(attestation: WebAuthNUser, challen
   };
   console.log("credential.get =", credentialParameters);
   const credential = await navigator.credentials.get(credentialParameters);
-  if (!credential) {
+  if (credential==null) {
     throw new Error("No credential");
   }
   const assertion = credential as PublicKeyCredential;

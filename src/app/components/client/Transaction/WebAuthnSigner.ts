@@ -121,7 +121,8 @@ export class WebAuthnSigner implements SignerInterface {
     console.log("txHash calculated=", msgHash);
     const challenge = hex2Uint8Array(encode.removeHexPrefix(num.toHex64(msgHash)));
     console.log("Challenge =", challenge);
-    console.log("this.attestation=", this.attestation);
+    console.log("this.attestation.rpId=", this.attestation.rpId);
+    console.log("this.attestation.credentialIdText=", this.attestation.credentialIdText);
     const rawSignature: AuthenticatorAssertionResponse = await getTransactionSignature(this.attestation, challenge);
     console.log("Raw WebAuthN signature:", rawSignature, "\n", encode.buf2hex(new Uint8Array(rawSignature.signature)), encode.arrayBufferToString(rawSignature.signature));
     // extraction of useful data

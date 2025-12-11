@@ -186,7 +186,7 @@ export default function ManageUser() {
     const origin = window.location.origin;
     // const origin = "http://localhost:3000";
     const rpId = window.location.hostname
-    console.log({ rpId });
+    console.log("rpid=", rpId );
     try {
       const request: CredentialRequestOptions = {
         mediation: "optional",
@@ -210,7 +210,12 @@ export default function ManageUser() {
       }
       console.log("user pubK =", pubKey);
       setPubKX(pubKey);
-      console.log("response :", { userName, rpId, origin, credentialRawId, pubKey: pubKey });
+      console.log("response :");
+      console.log("username :", userName);
+      console.log("rpId :", rpId);
+      console.log("origin :", origin);
+      console.log("credentialRawId :", credentialRawId);
+      console.log("pubKey :", pubKey);
       const webAuthnUser: WebAuthNUser = {
         userName: userName,
         originText: origin,

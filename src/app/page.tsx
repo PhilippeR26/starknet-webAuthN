@@ -13,7 +13,7 @@ export default async function Page() {
     return (
             <div>
                 <p className={styles.bgText}>
-                    Test webAuthN with Starknet.js v9.0.0β3<br></br>
+                    Test webAuthN with Starknet.js v9.2.1<br></br>
                     Ready account v0.5.0 in Starknet Sepolia network
                 </p>
                 <Center>

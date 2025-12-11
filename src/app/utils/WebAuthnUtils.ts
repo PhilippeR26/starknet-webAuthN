@@ -36,16 +36,18 @@ export async function getTransactionSignature(attestation: WebAuthNUser, challen
     },
   };
   console.log("credential.get =", credentialParameters);
-  try{
-  const credential = await navigator.credentials.get(credentialParameters);
-  if (credential==null) {
-    throw new Error("No credential");
+  try {
+    const credential = await navigator.credentials.get(credentialParameters);
+    if (credential == null) {
+      throw new Error("No credential");
+    }
+    const assertion = credential as PublicKeyCredential;
+    console.log("assertion=", assertion);
+    console.log("assertion.response=", assertion.response as AuthenticatorAssertionResponse);
+    return assertion.response as AuthenticatorAssertionResponse;
+  } catch (err: any) {
+    throw new Error("credential.get fail:", err)
   }
-  const assertion = credential as PublicKeyCredential;
-  console.log("assertion=",assertion);
-  console.log("assertion.response=",assertion.response as AuthenticatorAssertionResponse);
-  return assertion.response as AuthenticatorAssertionResponse;
-} catch (err:any){throw new Error("credential.get fail:",err)}
 }
 
 /**

@@ -42,11 +42,7 @@ npm run dev
 |   Edge, Opera   |          ❌          |          ✅           |      ❌      |
 
 > [!NOTE]
-> Works with these hardwares: Windows, Linux, Android
-
-> [!WARNING]
-> This DAPP is not working in Iphone/Chrome.  
-> If somebody knows why it fail, I am interested...
+> Works with these hardwares: Windows, Linux, Android, Iphone
 
 ## Usage
 

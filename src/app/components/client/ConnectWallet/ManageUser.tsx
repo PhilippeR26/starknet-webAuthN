@@ -137,24 +137,19 @@ export default function ManageUser() {
       throw new Error("No attestation");
     }
     console.log("attestation created:", JSON.stringify(attestation));
-    // console.log("attestation JSON=", attestation.toJSON());
     if (attestation.type !== "public-key") {
       throw new Error("Not a public key attestation");
     }
     // *** if attestation.type == "public-key" then response type is `PublicKeyCredential`
     const AttestationIdText = attestation.id;
     console.log("AttestationIdText=", AttestationIdText);
-    const attestationId2 = (attestation as PublicKeyCredential).id
-    console.log("attestationId2=", attestationId2);
-    const attestationRawId2: ArrayBuffer = (attestation as PublicKeyCredential).rawId
-    console.log("attestationRawId2=", attestationRawId2);
+    const attestationId = (attestation as PublicKeyCredential).id
+    console.log("attestationId=", attestationId);
+    const attestationRawId: ArrayBuffer = (attestation as PublicKeyCredential).rawId
+    console.log("attestationRawId=", attestationRawId);
     const attestationResponse: AuthenticatorResponse = (attestation as PublicKeyCredential).response;
-    console.log("attestationResponse json =", JSON.stringify(attestationResponse));
     console.log("attestationResponse =", attestationResponse);
-    console.log("attestationResponse clientDataJSON =", (attestationResponse as AuthenticatorAttestationResponse).clientDataJSON);
-    console.log("attestationResponse attestationObject =", (attestationResponse as AuthenticatorAttestationResponse).attestationObject);
     const fullPubKey = (attestationResponse as AuthenticatorAttestationResponse).getPublicKey();
-    // const fullPubKey = (attestation.response as AuthenticatorResponse).clientDataJSON;
     if (fullPubKey == null) {
       throw new Error("No public key in response.");
     }
@@ -164,17 +159,17 @@ export default function ManageUser() {
     console.log("user pubKX =", pubKeyX);
     setPubKX(pubKeyX);
     // store data in backend
-    const resStorage = await storePubK({ id: attestationId2, userName, pubKey: pubKeyX });
+    const resStorage = await storePubK({ id: attestationId, userName, pubKey: pubKeyX });
     console.log("storage of user Data =", resStorage);
-    console.log("response :", { userName, rpId, origin, credentialRawId: attestationRawId2, pubKey: pubKeyX });
+    console.log("response :", { userName, rpId, origin, credentialRawId: attestationRawId, pubKey: pubKeyX });
     const webAuthnUser: WebAuthNUser = {
       userName: userName,
       originText: origin,
       origin: CallData.compile(origin.split("").map(shortString.encodeShortString)),
       rpId,
       rp_id_hash: encode.addHexPrefix(encode.buf2hex(sha256(new TextEncoder().encode(rpId)))),
-      credentialId: new Uint8Array(attestationRawId2),
-      credentialIdText: attestationId2,
+      credentialId: new Uint8Array(attestationRawId),
+      credentialIdText: attestationId,
       pubKey: pubKeyX,
     };
     console.log({ webAuthnSigner: webAuthnUser });
@@ -210,7 +205,6 @@ export default function ManageUser() {
     }
     // *** if attestation.type == "public-key" then response type is `PublicKeyCredential`
       console.log("Credential created:", credential.id);
-      // console.log("credential JSON=", credential.toJSON());
       const credentialIdText: string = (credential as PublicKeyCredential).id;
       const credentialRawId: ArrayBuffer = (credential as PublicKeyCredential).rawId;
       // get backend data

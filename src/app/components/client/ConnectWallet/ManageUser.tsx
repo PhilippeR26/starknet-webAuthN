@@ -101,7 +101,7 @@ export default function ManageUser() {
     console.log("Create key...", userName);
     const origin = window.location.origin;
     const rpId = window.location.hostname
-    console.log("rpId=", rpId );
+    console.log("rpId=", rpId);
     const id = randomBytes(32);
     const challenge: Uint8Array = randomBytes(32);
     const creation: CredentialCreationOptions = {
@@ -132,26 +132,30 @@ export default function ManageUser() {
       }
     }
     console.log("credential.create=", creation);
-    const attestation: Credential | null = (await navigator.credentials.create(creation)) ;
-    if (attestation==null) {
+    const attestation: Credential | null = (await navigator.credentials.create(creation));
+    if (attestation == null) {
       throw new Error("No attestation");
     }
     console.log("attestation created:", JSON.stringify(attestation));
     // console.log("attestation JSON=", attestation.toJSON());
-    if (attestation.type!=="public-key") {
+    if (attestation.type !== "public-key") {
       throw new Error("Not a public key attestation");
     }
     // *** if attestation.type == "public-key" then response type is `PublicKeyCredential`
     const AttestationIdText = attestation.id;
-    const attestationRawId =new TextEncoder().encode(attestation.id) ;
-    const attestationResponse:AuthenticatorResponse=(attestation as PublicKeyCredential).response;
-    console.log("attestationResponse json =",JSON.stringify(attestationResponse));
-    console.log("attestationResponse =",attestationResponse);
-    console.log("attestationResponse clientDataJSON =",(attestationResponse as AuthenticatorAttestationResponse).clientDataJSON);
-    console.log("attestationResponse attestationObject =",(attestationResponse as AuthenticatorAttestationResponse).attestationObject);
-     const fullPubKey = (attestationResponse as AuthenticatorAttestationResponse).getPublicKey();
+    console.log("AttestationIdText=", AttestationIdText);
+    const attestationId2 = (attestation as PublicKeyCredential).id
+    console.log("attestationId2=", attestationId2);
+    const attestationRawId2: ArrayBuffer = (attestation as PublicKeyCredential).rawId
+    console.log("attestationRawId2=", attestationRawId2);
+    const attestationResponse: AuthenticatorResponse = (attestation as PublicKeyCredential).response;
+    console.log("attestationResponse json =", JSON.stringify(attestationResponse));
+    console.log("attestationResponse =", attestationResponse);
+    console.log("attestationResponse clientDataJSON =", (attestationResponse as AuthenticatorAttestationResponse).clientDataJSON);
+    console.log("attestationResponse attestationObject =", (attestationResponse as AuthenticatorAttestationResponse).attestationObject);
+    const fullPubKey = (attestationResponse as AuthenticatorAttestationResponse).getPublicKey();
     // const fullPubKey = (attestation.response as AuthenticatorResponse).clientDataJSON;
-    if (fullPubKey==null) {
+    if (fullPubKey == null) {
       throw new Error("No public key in response.");
     }
     console.log("fullPubKey buffer =", fullPubKey, fullPubKey.byteLength);
@@ -160,17 +164,17 @@ export default function ManageUser() {
     console.log("user pubKX =", pubKeyX);
     setPubKX(pubKeyX);
     // store data in backend
-    const resStorage = await storePubK({ id: attestation.id, userName, pubKey: pubKeyX });
+    const resStorage = await storePubK({ id: attestationId2, userName, pubKey: pubKeyX });
     console.log("storage of user Data =", resStorage);
-    console.log("response :", { userName, rpId, origin, credentialRawId: attestationRawId, pubKey: pubKeyX });
+    console.log("response :", { userName, rpId, origin, credentialRawId: attestationRawId2, pubKey: pubKeyX });
     const webAuthnUser: WebAuthNUser = {
       userName: userName,
       originText: origin,
       origin: CallData.compile(origin.split("").map(shortString.encodeShortString)),
       rpId,
       rp_id_hash: encode.addHexPrefix(encode.buf2hex(sha256(new TextEncoder().encode(rpId)))),
-      credentialId: new Uint8Array(attestationRawId),
-      credentialIdText: AttestationIdText,
+      credentialId: new Uint8Array(attestationRawId2),
+      credentialIdText: attestationId2,
       pubKey: pubKeyX,
     };
     console.log({ webAuthnSigner: webAuthnUser });
@@ -186,7 +190,7 @@ export default function ManageUser() {
     const origin = window.location.origin;
     // const origin = "http://localhost:3000";
     const rpId = window.location.hostname
-    console.log("rpid=", rpId );
+    console.log("rpid=", rpId);
     try {
       const request: CredentialRequestOptions = {
         mediation: "optional",
@@ -195,14 +199,20 @@ export default function ManageUser() {
           userVerification: "preferred",
         },
       }
-      const credential = (await navigator.credentials.get(request)) as Credential;
-      if (!credential) {
+      // show list of keys and select one
+      const credential = await navigator.credentials.get(request);
+      console.log("credential=",credential!.type);
+      if (credential==null) {
         throw new Error("No credential");
       }
-      console.log("Credential created:", credential.id );
+      if (credential.type!=="public-key") {
+      throw new Error("Not a public key attestation");
+    }
+    // *** if attestation.type == "public-key" then response type is `PublicKeyCredential`
+      console.log("Credential created:", credential.id);
       // console.log("credential JSON=", credential.toJSON());
-      const credentialIdText:string = credential.id;
-      const credentialRawId:Uint8Array = new TextEncoder().encode(credential.id);
+      const credentialIdText: string = (credential as PublicKeyCredential).id;
+      const credentialRawId: ArrayBuffer = (credential as PublicKeyCredential).rawId;
       // get backend data
       const { pubKey, userName } = await getPubK(credential.id);
       if (pubKey === null) {

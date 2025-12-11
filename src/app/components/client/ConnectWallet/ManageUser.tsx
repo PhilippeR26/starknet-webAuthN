@@ -101,7 +101,7 @@ export default function ManageUser() {
     console.log("Create key...", userName);
     const origin = window.location.origin;
     const rpId = window.location.hostname
-    console.log({ rpId });
+    console.log("rpId=", rpId );
     const id = randomBytes(32);
     const challenge: Uint8Array = randomBytes(32);
     const creation: CredentialCreationOptions = {
@@ -132,16 +132,26 @@ export default function ManageUser() {
       }
     }
     console.log("credential.create=", creation);
-    const attestation = (await navigator.credentials.create(creation)) as PublicKeyCredential;
-    if (!attestation) {
+    const attestation: Credential | null = (await navigator.credentials.create(creation)) ;
+    if (attestation==null) {
       throw new Error("No attestation");
     }
-    console.log("attestation created:", attestation);
-    console.log("attestation JSON=", attestation.toJSON());
-    const attestationRawId = attestation.rawId;
+    console.log("attestation created:", JSON.stringify(attestation));
+    // console.log("attestation JSON=", attestation.toJSON());
+    if (attestation.type!=="public-key") {
+      throw new Error("Not a public key attestation");
+    }
+    // *** if attestation.type == "public-key" then response type is `PublicKeyCredential`
     const AttestationIdText = attestation.id;
-    const fullPubKey = (attestation.response as AuthenticatorAttestationResponse).getPublicKey();
-    if (fullPubKey === null) {
+    const attestationRawId =new TextEncoder().encode(attestation.id) ;
+    const attestationResponse:AuthenticatorResponse=(attestation as PublicKeyCredential).response;
+    console.log("attestationResponse json =",JSON.stringify(attestationResponse));
+    console.log("attestationResponse =",attestationResponse);
+    console.log("attestationResponse clientDataJSON =",(attestationResponse as AuthenticatorAttestationResponse).clientDataJSON);
+    console.log("attestationResponse attestationObject =",(attestationResponse as AuthenticatorAttestationResponse).attestationObject);
+     const fullPubKey = (attestationResponse as AuthenticatorAttestationResponse).getPublicKey();
+    // const fullPubKey = (attestation.response as AuthenticatorResponse).clientDataJSON;
+    if (fullPubKey==null) {
       throw new Error("No public key in response.");
     }
     console.log("fullPubKey buffer =", fullPubKey, fullPubKey.byteLength);

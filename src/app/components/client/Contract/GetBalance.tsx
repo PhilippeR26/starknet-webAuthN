@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Contract, shortString } from "starknet";
+import { CairoBytes31, Contract, num, shortString } from "starknet";
 import { Text, Center, Spinner } from "@chakra-ui/react";
 import styles from '../../../page.module.css'
 import { erc20Abi } from "../../../contracts/abis/ERC20abi"
 import { myFrontendProviders } from '@/app/utils/constants';
 import { useFrontendProvider } from '../provider/providerContext';
+import { USDCircleAbi } from '@/app/contracts/abis/USDCircleAbi';
 
 
 type Props = { tokenAddress: string, accountAddress: string };
@@ -31,23 +32,44 @@ export default function GetBalance({ tokenAddress, accountAddress }: Props) {
             })
             .catch((e: any) => { console.log("error getDecimals=", e) });
 
+        let symbol: string = "---";
         contract.symbol()
-            .then((resp: any) => {
-                const res2 = shortString.decodeShortString(resp);
-                console.log("ressymbol=", res2);
-                setSymbol(res2);
+            .then((res2: bigint) => {
+                symbol = num.toHex(res2);
+                console.log("resSymbol=", symbol);
+                if (symbol === "0x0") { // try abi with ByteArray response
+                    console.log("try with ByteArray response...");
+                    const contract2 = new Contract({
+                        abi: USDCircleAbi,
+                        address: tokenAddress,
+                        providerOrAccount: myProvider
+                    });
+                    contract2.symbol()
+                        .then((res3: string) => {
+                            symbol = res3;
+                            console.log("symbol for", contract.address, " (ByteArray) is", symbol);
+                            setSymbol(symbol);
+
+                        })
+                        .catch((e: any) => { console.log("error getSymbol (ByteArray)=", e) });
+                } else {
+                    symbol = new CairoBytes31(symbol).decodeUtf8();
+                    if (symbol === "USDC") { symbol = "USDC.e" }
+                    setSymbol(symbol);
+
+                }
             })
-            .catch((e: any) => { console.log("error getSymbol=", e) });
-    }
+            .catch((e: any) => {
+                console.log("error getSymbol (felt)=", e);
+            });
+        setSymbol(symbol);    }
         , []);
 
     useEffect(() => {
         contract.balanceOf(accountAddress)
             .then((resp: any) => {
                 const res3 = Number(resp);
-                // console.log("res3=", resp);
                 setBalance(res3 / Math.pow(10, decimals));
-                // console.log({counter});
             }
             )
             .catch((e: any) => { console.log("error balanceOf=", e) });
@@ -57,7 +79,6 @@ export default function GetBalance({ tokenAddress, accountAddress }: Props) {
     useEffect(() => {
         const tim = setInterval(() => {
             setCounter((prevCount) => prevCount + 1n);
-            // console.log("timerId=", tim);
         }
             , 24_000 //ms
         );
@@ -88,6 +109,5 @@ export default function GetBalance({ tokenAddress, accountAddress }: Props) {
                 )
             }
         </>
-
     )
 }

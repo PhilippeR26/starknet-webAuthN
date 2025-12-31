@@ -24,6 +24,8 @@ export type UserStorage = {
   pubKey: string,
 }
 
+export type DatabaseValue = Omit<UserStorage, "id">;
+
 // "argent::signer::signer_signature::SignerSignature"
 export enum SignerType {
   Starknet,

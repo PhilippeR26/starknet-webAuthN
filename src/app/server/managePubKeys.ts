@@ -1,47 +1,50 @@
 "use server";
 
-import { createClient } from '@supabase/supabase-js'
-import type { UserStorage } from "@/app/type/types";
+import type { DatabaseValue, UserStorage } from "@/app/type/types";
+import { Redis } from "@upstash/redis";
 
 
 export async function storePubK(data: UserStorage): Promise<boolean> {
     console.log("store User...");
-    console.log("DATABASE_URL=", process.env.DATABASE_URL);
-    console.log("SUPABASE_KEY=", process.env.SUPABASE_KEY);
-
+    console.log("DATABASE_URL=", process.env.KV_REST_API_URL);
+    console.log("DATABASE_KEY=", process.env.KV_REST_API_TOKEN);
     // connect to database
-    const supabase = createClient(process.env.DATABASE_URL ?? "", process.env.SUPABASE_KEY ?? "", {});
-    // connect an authorized database user
-    const { data: dataUser } = await supabase.auth.signInWithPassword({
-        email: process.env.SUPABASE_USER_EMAIL??"",
-        password: process.env.SUPABASE_USER_PWD??"",
+    const redis = new Redis({
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_TOKEN,
     });
-    console.log("dataUser=", dataUser.user);
     // store data
-    const { error } = await supabase
-        .from('webauthnUsers')
-        .insert(data);
-    if (error) {
+    const toStore: DatabaseValue = {
+        userName: data.userName,
+        pubKey: data.pubKey,
+    };
+    try {
+        await redis.set(data.id, JSON.stringify(toStore));
+        console.log("Stored user:", data);
+        return true;
+    } catch (error: any) {
         console.error("Error storing user:", error);
         return false;
     }
-    return true;
 }
+
 
 export async function getPubK(id: string): Promise<UserStorage> {
     console.log("get userName=", id);
-    console.log("DATABASE_URL=", process.env.DATABASE_URL);
-    console.log("SUPABASE_KEY=", process.env.SUPABASE_KEY);
+    console.log("DATABASE_URL=", process.env.KV_REST_API_URL);
+    console.log("DATABASE_KEY=", process.env.KV_REST_API_READ_ONLY_TOKEN);
     // connect to database
-    const supabase = createClient(process.env.DATABASE_URL ?? "", process.env.SUPABASE_KEY ?? "");
+    const redis = new Redis({
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_READ_ONLY_TOKEN,
+    });
     // read database
-    const { data: filtered, error } = await supabase.from("webauthnUsers").select().eq("id", id);
-    if (filtered == null || filtered.length == 0) {
+    const res = (await redis.get(id) as DatabaseValue);
+    console.log(res);
+    if (!res) {
         throw new Error("User not found in server!");
     }
-    if (error) {
-        throw new Error("Error reading user:", error);
-    }
-    console.log("getPubK...", filtered[0]);
-    return filtered[0] as Promise<UserStorage>;
+    const user: UserStorage = { id, ...res };
+    console.log("getPubK...", user);
+    return user;
 }

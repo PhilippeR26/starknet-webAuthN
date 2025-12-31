@@ -24,8 +24,8 @@ The DAPP is made in the Next.js framework. Coded in Typescript. Using React, Zus
 
 ## Getting Started 🚀
 
-- Define your own Supabase database
-- define a .env.local file
+- Define your own `upstash for Redis` database in Vercel/storage, and link it to your project. Read env variables.
+- define a .env.local file (take example to `.env.local.example` file)
 - Run the development server: 
 ```bash
 npm i
@@ -63,7 +63,7 @@ Click on create (here in French):
 ![](./Images/create-2.png)
 
 ### 2. Store answer in the backend
-The answer is an object, containing some data that needs to be stored for long term in the DAPP server. In this DAPP, it's stored in a Supabase database by the backend.  
+The answer is an object, containing some data that needs to be stored for long term in the DAPP server. In this DAPP, it's stored in a KV `upstash for Redis` database by the backend.  
 The stored data :
 ```json
 {
@@ -72,14 +72,6 @@ The stored data :
     "pubKey": "0x92647e4b83f5b2592ca98620b2033a1b6d6a6d5de90d1df9f9ce7b33e50775b0"
 }
 ```
-The database definition :
-![](./Images/Supabase-1.png)
-
-A user has been created, to be able to write in the database:
-![](./Images/Supabase-2.png)
-
-2 policies have been defined:
-![](./Images/Supabase-4.png)
 
 ### 3. Definition of the account address
 We have now all the necessary inputs to calculate the account address.  

@@ -16,7 +16,7 @@
     "@peculiar/asn1-ecc": "^2.6.0",
     "@peculiar/asn1-schema": "^2.6.0",
     "@starknet-io/types-js": "^0.10.0",
-    "@supabase/supabase-js": "^2.87.0",
+    "@upstash/redis": "^1.36.0",
     "dotenv": "^17.2.3",
     "lucide-react": "^0.556.0",
     "next": "^16.0.8",

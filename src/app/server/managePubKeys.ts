@@ -1,26 +1,22 @@
 "use server";
 
-import type { DatabaseValue, UserStorage } from "@/app/type/types";
-import { Redis } from "@upstash/redis";
+import type { UserStorage } from "@/app/type/types";
+import { createClient } from "@libsql/client";
 
+function getClient() {
+    return createClient({
+        url: process.env.TURSO_DATABASE_URL!,
+        authToken: process.env.TURSO_AUTH_TOKEN,
+    });
+}
 
 export async function storePubK(data: UserStorage): Promise<boolean> {
-    console.log("store User...");
-    console.log("DATABASE_URL=", process.env.KV_REST_API_URL);
-    console.log("DATABASE_KEY=", process.env.KV_REST_API_TOKEN);
-    // connect to database
-    const redis = new Redis({
-        url: process.env.KV_REST_API_URL,
-        token: process.env.KV_REST_API_TOKEN,
-    });
-    // store data
-    const toStore: DatabaseValue = {
-        userName: data.userName,
-        pubKey: data.pubKey,
-    };
+    const client = getClient();
     try {
-        await redis.set(data.id, JSON.stringify(toStore));
-        console.log("Stored user:", data);
+        await client.execute({
+            sql: "INSERT OR REPLACE INTO users (id, userName, pubKey) VALUES (?, ?, ?)",
+            args: [data.id, data.userName, data.pubKey],
+        });
         return true;
     } catch (error: any) {
         console.error("Error storing user:", error);
@@ -28,23 +24,15 @@ export async function storePubK(data: UserStorage): Promise<boolean> {
     }
 }
 
-
 export async function getPubK(id: string): Promise<UserStorage> {
-    console.log("get userName=", id);
-    console.log("DATABASE_URL=", process.env.KV_REST_API_URL);
-    console.log("DATABASE_KEY=", process.env.KV_REST_API_READ_ONLY_TOKEN);
-    // connect to database
-    const redis = new Redis({
-        url: process.env.KV_REST_API_URL,
-        token: process.env.KV_REST_API_READ_ONLY_TOKEN,
+    const client = getClient();
+    const result = await client.execute({
+        sql: "SELECT userName, pubKey FROM users WHERE id = ?",
+        args: [id],
     });
-    // read database
-    const res = (await redis.get(id) as DatabaseValue);
-    console.log(res);
-    if (!res) {
+    if (result.rows.length === 0) {
         throw new Error("User not found in server!");
     }
-    const user: UserStorage = { id, ...res };
-    console.log("getPubK...", user);
-    return user;
+    const row = result.rows[0];
+    return { id, userName: row.userName as string, pubKey: row.pubKey as string };
 }
